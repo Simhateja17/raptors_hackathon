@@ -3,6 +3,7 @@ __pycache__
 *.pyc
 build/
 dist/
+target/
 .tox/
 licenses_example/choosealicense.com
 .hypothesis/
