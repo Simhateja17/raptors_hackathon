@@ -61,10 +61,14 @@ does so.
 
 - One public algorithm per file under `rust/src/algorithms/`.
 - One focused native test file per algorithm under `rust/tests/algorithms/`.
+- All assigned module paths are declared in `rust/src/algorithms/mod.rs` from
+  the scaffold. `rust/tests/registry.rs` imports every path so missing or
+  misnamed packets fail at compile time.
 - `rust/src/algorithms/mod.rs`, `rust/src/core/**`, and `python_adapter/**`
   are shared surfaces owned by Simha Teja.
-- Algorithm owners do not edit the registry, Cargo dependencies, or another
-  owner’s files. They report API gaps instead.
+- Algorithm owners replace only their assigned implementation/test files; they
+  do not edit the registry, Cargo dependencies, or another owner’s files. They
+  report API gaps instead.
 
 ## Compatibility priorities
 

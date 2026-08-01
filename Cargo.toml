@@ -17,3 +17,7 @@ python = []
 [[test]]
 name = "core_contract"
 path = "rust/tests/common.rs"
+
+[[test]]
+name = "registry"
+path = "rust/tests/registry.rs"
