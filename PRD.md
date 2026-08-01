@@ -90,6 +90,7 @@ standalone Rust TextDistance core
 
 - Each public algorithm is implemented in one dedicated Rust file and tested in one dedicated native test file; this is what makes four-person parallel work safe.
 - Every assigned algorithm path is compile-visible from the scaffold. Simha Teja owns the shared registry, while each owner replaces only the placeholder in their assigned file; a registry test must import every packet.
+- Native algorithm tests live as unique files directly under `rust/tests/` (for example, `rust/tests/algorithm_jaccard.rs`). Cargo auto-discovers direct integration-test roots; owners must not create nested test files that require editing a shared harness.
 - Rust core logic must not import Python or depend on Python objects.
 - Python `str` must be handled as Unicode scalar values, matching Python’s code-point length behavior rather than byte length.
 - The adapter must cover strings, bytes, and integer sequences used by the original suite.
@@ -103,7 +104,7 @@ standalone Rust TextDistance core
 
 All four members are AI-assisted implementation owners. The human responsibility is to understand the source behavior, give the AI a narrow task, inspect the diff, run the acceptance checks, and explain the result. Nobody is expected to design or type the entire port manually.
 
-To prevent file conflicts, every public algorithm gets its own Rust source file and its own native test file. The shared module registry is owned by Simha Teja; he seeds the declarations and placeholders, and algorithm owners replace only their assigned implementation/test files.
+To prevent file conflicts, every public algorithm gets its own Rust source file and its own native test file. The shared module registry is owned by Simha Teja; he seeds the declarations and placeholders, and algorithm owners replace only their assigned implementation/test files. Native tests use unique direct files under `rust/tests/` so Cargo discovers them without a shared harness.
 
 ### Simha Teja — architecture, highest-risk algorithms, and FFI
 
@@ -131,15 +132,15 @@ rust/src/algorithms/edit/strcmp95.rs
 rust/src/algorithms/edit/mlipns.rs
 rust/src/algorithms/compression/arith_ncd.rs
 rust/src/algorithms/sequence/lcsseq.rs
-rust/tests/algorithms/levenshtein.rs
-rust/tests/algorithms/damerau_levenshtein.rs
-rust/tests/algorithms/needleman_wunsch.rs
-rust/tests/algorithms/smith_waterman.rs
-rust/tests/algorithms/gotoh.rs
-rust/tests/algorithms/strcmp95.rs
-rust/tests/algorithms/mlipns.rs
-rust/tests/algorithms/arith_ncd.rs
-rust/tests/algorithms/lcsseq.rs
+rust/tests/algorithm_levenshtein.rs
+rust/tests/algorithm_damerau_levenshtein.rs
+rust/tests/algorithm_needleman_wunsch.rs
+rust/tests/algorithm_smith_waterman.rs
+rust/tests/algorithm_gotoh.rs
+rust/tests/algorithm_strcmp95.rs
+rust/tests/algorithm_mlipns.rs
+rust/tests/algorithm_arith_ncd.rs
+rust/tests/algorithm_lcsseq.rs
 ```
 
 **Thinking tasks:** freeze the common API, decide the Rust sequence representation, resolve Unicode and numeric semantics, and review all cross-cutting changes.
@@ -159,14 +160,14 @@ rust/src/algorithms/compression/entropy_ncd.rs
 rust/src/algorithms/compression/bz2_ncd.rs
 rust/src/algorithms/compression/lzma_ncd.rs
 rust/src/algorithms/compression/zlib_ncd.rs
-rust/tests/algorithms/jaro.rs
-rust/tests/algorithms/jaro_winkler.rs
-rust/tests/algorithms/editex.rs
-rust/tests/algorithms/sqrt_ncd.rs
-rust/tests/algorithms/entropy_ncd.rs
-rust/tests/algorithms/bz2_ncd.rs
-rust/tests/algorithms/lzma_ncd.rs
-rust/tests/algorithms/zlib_ncd.rs
+rust/tests/algorithm_jaro.rs
+rust/tests/algorithm_jaro_winkler.rs
+rust/tests/algorithm_editex.rs
+rust/tests/algorithm_sqrt_ncd.rs
+rust/tests/algorithm_entropy_ncd.rs
+rust/tests/algorithm_bz2_ncd.rs
+rust/tests/algorithm_lzma_ncd.rs
+rust/tests/algorithm_zlib_ncd.rs
 ```
 
 **Thinking tasks:** document compressor settings and numerical tolerance, compare Rust crate behavior with fixed baseline fixtures, and identify any dependency or output-format risk before integration.
@@ -189,15 +190,15 @@ rust/src/algorithms/token/monge_elkan.rs
 rust/src/algorithms/token/bag.rs
 rust/src/algorithms/sequence/lcsstr.rs
 rust/src/algorithms/compression/rle_ncd.rs
-rust/tests/algorithms/hamming.rs
-rust/tests/algorithms/jaccard.rs
-rust/tests/algorithms/sorensen.rs
-rust/tests/algorithms/tversky.rs
-rust/tests/algorithms/cosine.rs
-rust/tests/algorithms/monge_elkan.rs
-rust/tests/algorithms/bag.rs
-rust/tests/algorithms/lcsstr.rs
-rust/tests/algorithms/rle_ncd.rs
+rust/tests/algorithm_hamming.rs
+rust/tests/algorithm_jaccard.rs
+rust/tests/algorithm_sorensen.rs
+rust/tests/algorithm_tversky.rs
+rust/tests/algorithm_cosine.rs
+rust/tests/algorithm_monge_elkan.rs
+rust/tests/algorithm_bag.rs
+rust/tests/algorithm_lcsstr.rs
+rust/tests/algorithm_rle_ncd.rs
 ```
 
 **Thinking tasks:** translate set/multiset definitions into explicit examples, cover q-grams and repeated tokens, and verify returned subsequences and tie-breaking against the source tests.
@@ -219,16 +220,16 @@ rust/src/algorithms/simple/postfix.rs
 rust/src/algorithms/simple/length.rs
 rust/src/algorithms/simple/identity.rs
 rust/src/algorithms/simple/matrix.rs
-rust/tests/algorithms/overlap.rs
-rust/tests/algorithms/tanimoto.rs
-rust/tests/algorithms/ratcliff_obershelp.rs
-rust/tests/algorithms/bwtrle_ncd.rs
-rust/tests/algorithms/mra.rs
-rust/tests/algorithms/prefix.rs
-rust/tests/algorithms/postfix.rs
-rust/tests/algorithms/length.rs
-rust/tests/algorithms/identity.rs
-rust/tests/algorithms/matrix.rs
+rust/tests/algorithm_overlap.rs
+rust/tests/algorithm_tanimoto.rs
+rust/tests/algorithm_ratcliff_obershelp.rs
+rust/tests/algorithm_bwtrle_ncd.rs
+rust/tests/algorithm_mra.rs
+rust/tests/algorithm_prefix.rs
+rust/tests/algorithm_postfix.rs
+rust/tests/algorithm_length.rs
+rust/tests/algorithm_identity.rs
+rust/tests/algorithm_matrix.rs
 ```
 
 **Also owns:**
@@ -286,7 +287,7 @@ Each owner can use this template with their coding agent:
 Implement only <ALGORITHM> from textdistance/algorithms/<SOURCE_MODULE>.py.
 
 Target file: rust/src/algorithms/<TARGET_FILE>.rs
-Test file: rust/tests/algorithms/<TARGET_TEST>.rs
+Test file: rust/tests/algorithm_<TARGET_TEST>.rs
 
 Read the original source and its tests. Preserve observable behavior, including
 empty inputs, equal inputs, Unicode/code-point semantics, qval behavior, numeric
@@ -537,7 +538,7 @@ These tasks are sequential and block port integration.
 
 G1 is sequential only at the shared-contract level. The behavior-card
 preparation tasks in Lane 2 are parallel-safe, and algorithm implementation
-starts after the registry compile gate G1-08. No teammate needs to edit the
+starts after the shared contract extensions and test-layout gate G1-10. No teammate needs to edit the
 shared registry to begin an assigned packet.
 
 - [x] **G1-01 — Simha Teja — create the standalone crate**
@@ -567,15 +568,23 @@ shared registry to begin an assigned packet.
 - [x] **G1-07 — Simha Teja — compile and freeze the contract**
   - Dependency: G1-01 through G1-06 and Rust installed.
   - Output: successful `cargo fmt --check` and `cargo test`; `API-FREEZE` tag/commit.
-  - Acceptance: `cargo fmt --check` and `cargo test` pass; the shared crate compiles independently of Python and all four G1 contract tests pass.
+  - Acceptance: `cargo fmt --check` and `cargo test` pass; the shared crate compiles independently of Python and the core contract tests pass.
 - [x] **G1-08 — Simha Teja — make the full registry compile-visible**
   - Dependency: G1-07.
   - Output: all 36 assigned module declarations, replaceable placeholders, and `rust/tests/registry.rs`.
   - Acceptance: `cargo fmt --check && cargo test` passes; the registry test imports every assigned algorithm path. Owners replace placeholders without editing `rust/src/algorithms/mod.rs`.
+- [x] **G1-09 — Simha Teja — add the output/error/comparator interface**
+  - Dependency: G1-08.
+  - Output: `AlgorithmOutput`, `AlgorithmError`, `OutputAlgorithm`, output conversion helpers, and `SimilarityComparator` in `rust/src/core/mod.rs`.
+  - Acceptance: numeric algorithms remain source-compatible; sequence-producing algorithms can return their prepared sequence; delegated algorithms can accept a built-in Rust comparator without Python callbacks.
+- [x] **G1-10 — Simha Teja — standardize native test discovery**
+  - Dependency: G1-09.
+  - Output: direct `rust/tests/algorithm_<name>.rs` ownership convention documented in the PRD and API contract.
+  - Acceptance: an owner can add one native test file without editing `Cargo.toml` or a shared test harness.
 
 ### Lane 2 — Parallel behavior-card preparation
 
-These are safe while G1-08 is pending because they create understanding and
+These are safe while G1-10 is pending because they create understanding and
 fixtures, not shared Rust changes.
 
 - [ ] **PREP-01 — Simha Teja — behavior cards for high-risk algorithms**
@@ -593,7 +602,7 @@ fixtures, not shared Rust changes.
 
 ### Lane 3 — Parallel algorithm packets
 
-All tasks below depend on G1-08 and the corresponding PREP task. Each checkbox
+All tasks below depend on G1-10 and the corresponding PREP task. Each checkbox
 means: implementation, focused native test, diff review, and a commit. The
 owner may use the standard AI prompt in Section 7, but must keep the AI inside
 the exact source/test paths shown in the ownership section.
@@ -609,6 +618,7 @@ the exact source/test paths shown in the ownership section.
 - [ ] **SIM-07 — MLIPNS** — `edit/mlipns.rs` + native test.
 - [ ] **SIM-08 — Arithmetic NCD** — `compression/arith_ncd.rs` + native test.
 - [ ] **SIM-09 — LCS sequence** — `sequence/lcsseq.rs` + native test.
+  - Dependency: G1-09 because the source call returns a sequence.
 - [ ] **SIM-10 — FFI contract implementation** — `python_adapter/**`.
   - Dependency: at least SIM-01, POO-01, and one representative algorithm from Manasa and Suri.
   - Acceptance: the adapter invokes Rust only and exposes the common methods required by the original tests.
@@ -621,11 +631,11 @@ the exact source/test paths shown in the ownership section.
 - [ ] **MAN-04 — Square-root NCD** — `compression/sqrt_ncd.rs` + native test.
 - [ ] **MAN-05 — Entropy NCD** — `compression/entropy_ncd.rs` + native test.
 - [ ] **MAN-06 — BZ2 NCD** — `compression/bz2_ncd.rs` + native test.
-  - Dependency: G1-08, PREP-02, and DEP-03.
+  - Dependency: G1-10, PREP-02, and DEP-03.
 - [ ] **MAN-07 — LZMA NCD** — `compression/lzma_ncd.rs` + native test.
-  - Dependency: G1-08, PREP-02, and DEP-03.
+  - Dependency: G1-10, PREP-02, and DEP-03.
 - [ ] **MAN-08 — ZLIB NCD** — `compression/zlib_ncd.rs` + native test.
-  - Dependency: G1-08, PREP-02, and DEP-03.
+  - Dependency: G1-10, PREP-02, and DEP-03.
 - [ ] **MAN-09 — dependency handoff** — `docs/dependency-notes/manasa.md`.
   - Acceptance: the note identifies reviewed candidates such as `bzip2`, `xz2` or a pure-Rust LZMA alternative, and `flate2`, plus feature flags, system-library requirements, licenses, settings, and fixed expected-output risks.
 
@@ -646,8 +656,10 @@ the exact source/test paths shown in the ownership section.
 - [ ] **POO-04 — Tversky** — `token/tversky.rs` + native test.
 - [ ] **POO-05 — Cosine** — `token/cosine.rs` + native test.
 - [ ] **POO-06 — Monge-Elkan** — `token/monge_elkan.rs` + native test.
+  - Dependency: G1-09 because the underlying comparison must cross the `SimilarityComparator` seam.
 - [ ] **POO-07 — Bag** — `token/bag.rs` + native test.
 - [ ] **POO-08 — LCS substring** — `sequence/lcsstr.rs` + native test.
+  - Dependency: G1-09 because the source call returns the substring, not only its length.
 - [ ] **POO-09 — RLE NCD** — `compression/rle_ncd.rs` + native test.
 
 #### Suri’s packets
@@ -709,11 +721,11 @@ These tasks are intentionally sequential after the parallel packets.
 ```text
 G0-01 → G0-02 → G0-04 → G0-05
             │
-            └────────── G1-01 → G1-02 → G1-03 → G1-04 → G1-06 → G1-07 → G1-08
-                                                                        │
-                                      PREP-01..04 ──────────────────────┘
-                                                                        │
-                                      SIM/MAN/POO/SUR packets ───────────┘
+            └────────── G1-01 → G1-02 → G1-03 → G1-04 → G1-06 → G1-07 → G1-08 → G1-09 → G1-10
+                                                                                              │
+                                      PREP-01..04 ───────────────────────────────────────────┘
+                                                                                              │
+                                      SIM/MAN/POO/SUR packets ───────────────────────────────┘
                                                                         │
                                       MAN-09 → DEP-02 → DEP-03 → MAN-06..08
                                                             │

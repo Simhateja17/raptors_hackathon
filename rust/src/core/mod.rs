@@ -21,6 +21,35 @@ pub enum Element {
 /// A prepared sequence consumed by algorithms.
 pub type Sequence = Vec<Element>;
 
+/// Values returned by the public algorithm interface.
+///
+/// Numeric algorithms return `Score`; sequence-producing algorithms such as
+/// LCSSeq and LCSStr return `Sequence` so the adapter can preserve the source
+/// library's observable return value instead of reducing it to a length.
+#[derive(Clone, Debug, PartialEq)]
+pub enum AlgorithmOutput {
+    Score(f64),
+    Sequence(Sequence),
+}
+
+impl AlgorithmOutput {
+    /// Convert an output to the scalar used by similarity/distance helpers.
+    /// A returned sequence contributes its element count.
+    pub fn scalar_value(&self) -> f64 {
+        match self {
+            Self::Score(value) => *value,
+            Self::Sequence(sequence) => sequence.len() as f64,
+        }
+    }
+
+    pub fn sequence(&self) -> Option<&Sequence> {
+        match self {
+            Self::Score(_) => None,
+            Self::Sequence(sequence) => Some(sequence),
+        }
+    }
+}
+
 /// Input forms accepted by the shared Rust contract.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum InputSequence {
@@ -72,6 +101,37 @@ impl Display for InputError {
 }
 
 impl Error for InputError {}
+
+/// Errors that may be reported by an algorithm or the adapter seam.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AlgorithmError {
+    Input(InputError),
+    InvalidConfiguration(String),
+    InvalidInput(String),
+    UnsupportedCustomComparator,
+}
+
+impl Display for AlgorithmError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Input(error) => write!(formatter, "input error: {error}"),
+            Self::InvalidConfiguration(message) => {
+                write!(formatter, "invalid algorithm configuration: {message}")
+            }
+            Self::InvalidInput(message) => write!(formatter, "invalid algorithm input: {message}"),
+            Self::UnsupportedCustomComparator => formatter
+                .write_str("custom comparison functions are not supported by the Rust port"),
+        }
+    }
+}
+
+impl Error for AlgorithmError {}
+
+impl From<InputError> for AlgorithmError {
+    fn from(error: InputError) -> Self {
+        Self::Input(error)
+    }
+}
 
 impl InputSequence {
     fn as_elements(&self) -> Sequence {
@@ -156,6 +216,36 @@ pub enum ScoreMode {
     Similarity,
 }
 
+pub fn output_distance(output: &AlgorithmOutput, mode: ScoreMode, maximum: f64) -> f64 {
+    match mode {
+        ScoreMode::Distance => output.scalar_value(),
+        ScoreMode::Similarity => maximum - output.scalar_value(),
+    }
+}
+
+pub fn output_similarity(output: &AlgorithmOutput, mode: ScoreMode, maximum: f64) -> f64 {
+    match mode {
+        ScoreMode::Distance => maximum - output.scalar_value(),
+        ScoreMode::Similarity => output.scalar_value(),
+    }
+}
+
+/// A pairwise similarity seam for algorithms that delegate comparisons.
+///
+/// The adapter selects a built-in Rust implementation such as Jaro-Winkler
+/// or Damerau-Levenshtein. Arbitrary source-language callbacks do not cross
+/// this seam.
+pub trait SimilarityComparator {
+    fn compare(&self, left: &PreparedSequence, right: &PreparedSequence) -> f64;
+}
+
+impl<T: Algorithm> SimilarityComparator for T {
+    fn compare(&self, left: &PreparedSequence, right: &PreparedSequence) -> f64 {
+        let pair = [left.clone(), right.clone()];
+        Algorithm::similarity(self, &pair)
+    }
+}
+
 /// Common behavior every algorithm implementation must expose.
 pub trait Algorithm {
     /// Return the algorithm's direct/raw score.
@@ -214,5 +304,30 @@ pub trait Algorithm {
             });
         }
         None
+    }
+}
+
+/// Output-capable interface used by numeric and sequence-producing modules.
+/// Numeric `Algorithm` implementations receive this interface automatically;
+/// LCSSeq/LCSStr implement it directly and return `AlgorithmOutput::Sequence`.
+pub trait OutputAlgorithm {
+    fn output(&self, sequences: &[PreparedSequence]) -> Result<AlgorithmOutput, AlgorithmError>;
+
+    fn output_maximum(&self, sequences: &[PreparedSequence]) -> f64;
+
+    fn output_mode(&self) -> ScoreMode;
+}
+
+impl<T: Algorithm> OutputAlgorithm for T {
+    fn output(&self, sequences: &[PreparedSequence]) -> Result<AlgorithmOutput, AlgorithmError> {
+        Ok(AlgorithmOutput::Score(Algorithm::call(self, sequences)))
+    }
+
+    fn output_maximum(&self, sequences: &[PreparedSequence]) -> f64 {
+        Algorithm::maximum(self, sequences)
+    }
+
+    fn output_mode(&self) -> ScoreMode {
+        Algorithm::score_mode(self)
     }
 }
