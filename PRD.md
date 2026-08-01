@@ -89,6 +89,7 @@ standalone Rust TextDistance core
 ### Required design decisions
 
 - Each public algorithm is implemented in one dedicated Rust file and tested in one dedicated native test file; this is what makes four-person parallel work safe.
+- Every assigned algorithm path is compile-visible from the scaffold. Simha Teja owns the shared registry, while each owner replaces only the placeholder in their assigned file; a registry test must import every packet.
 - Rust core logic must not import Python or depend on Python objects.
 - Python `str` must be handled as Unicode scalar values, matching Python’s code-point length behavior rather than byte length.
 - The adapter must cover strings, bytes, and integer sequences used by the original suite.
@@ -102,7 +103,7 @@ standalone Rust TextDistance core
 
 All four members are AI-assisted implementation owners. The human responsibility is to understand the source behavior, give the AI a narrow task, inspect the diff, run the acceptance checks, and explain the result. Nobody is expected to design or type the entire port manually.
 
-To prevent file conflicts, every public algorithm gets its own Rust source file and its own native test file. The shared module registry is owned by Simha Teja; algorithm owners never edit it.
+To prevent file conflicts, every public algorithm gets its own Rust source file and its own native test file. The shared module registry is owned by Simha Teja; he seeds the declarations and placeholders, and algorithm owners replace only their assigned implementation/test files.
 
 ### Simha Teja — architecture, highest-risk algorithms, and FFI
 
@@ -170,7 +171,7 @@ rust/tests/algorithms/zlib_ncd.rs
 
 **Thinking tasks:** document compressor settings and numerical tolerance, compare Rust crate behavior with fixed baseline fixtures, and identify any dependency or output-format risk before integration.
 
-**Dependency rule:** Manasa never edits `Cargo.toml`; dependency requirements go in `docs/dependency-notes/manasa.md`, and Simha Teja integrates them once.
+**Dependency rule:** Manasa never edits `Cargo.toml`; dependency requirements go in `docs/dependency-notes/manasa.md`, including candidate crates, feature flags, system-library requirements, licenses, and compressor settings. Simha Teja reviews that note, changes `Cargo.toml`/`Cargo.lock` once, and runs the dependency smoke gate. Only BZ2, LZMA, and ZLIB implementation packets wait on that gate; Manasa’s other packets and all behavior-card work remain parallel-safe.
 
 **Done when:** every assigned algorithm has a focused implementation, fixed expected-value tests, and a written compatibility note for any compressor-specific behavior.
 
@@ -351,11 +352,11 @@ No one edits the copied tests after this gate.
 
 1. Create the Rust crate and common representation.
 1. Define algorithm trait/struct conventions and adapter names.
-1. Define module declarations and the adapter-facing contract; algorithm owners create placeholders only inside their own module files.
+1. Define module declarations and the adapter-facing contract; Simha Teja seeds all compile-visible module paths and placeholders, while algorithm owners replace placeholders only inside their own module files.
 1. Document supported input representations and error behavior.
 1. Tag `API-FREEZE`.
 
-Poojitha, Manasa, and Suri do not begin integration work until this gate exists. They may prepare notes and fixtures without editing shared Rust files.
+Poojitha, Manasa, and Suri do not begin algorithm implementation until this gate exists. They may prepare behavior cards and fixtures before it; after the registry sub-gate, their assigned files can proceed independently.
 
 ### Gate G2 — Parallel algorithm-packet implementation
 
@@ -534,9 +535,10 @@ These tasks are sequential and block port integration.
 
 ### Lane 1 — G1 shared Rust/API foundation
 
-G1 is sequential at the shared-contract level. The behavior-card preparation
-tasks in Lane 2 are parallel-safe, but algorithm implementation starts only
-after G1-07.
+G1 is sequential only at the shared-contract level. The behavior-card
+preparation tasks in Lane 2 are parallel-safe, and algorithm implementation
+starts after the registry compile gate G1-08. No teammate needs to edit the
+shared registry to begin an assigned packet.
 
 - [x] **G1-01 — Simha Teja — create the standalone crate**
   - Dependency: G0-02.
@@ -556,8 +558,8 @@ after G1-07.
   - Acceptance: distance-native and similarity-native algorithms can share common method conversion without Python.
 - [x] **G1-05 — Simha Teja — reserve the module registry**
   - Dependency: G1-01.
-  - Output: `rust/src/algorithms/mod.rs` with isolated family namespaces.
-  - Acceptance: later owners can add files without editing this shared registry themselves.
+  - Output: `rust/src/algorithms/mod.rs` with compile-visible declarations, isolated family namespaces, and replaceable packet paths.
+  - Acceptance: later owners replace their assigned file without editing this shared registry themselves.
 - [x] **G1-06 — Simha Teja — write the API contract**
   - Dependency: G1-02 through G1-05.
   - Output: `docs/API_CONTRACT.md`.
@@ -566,10 +568,14 @@ after G1-07.
   - Dependency: G1-01 through G1-06 and Rust installed.
   - Output: successful `cargo fmt --check` and `cargo test`; `API-FREEZE` tag/commit.
   - Acceptance: `cargo fmt --check` and `cargo test` pass; the shared crate compiles independently of Python and all four G1 contract tests pass.
+- [x] **G1-08 — Simha Teja — make the full registry compile-visible**
+  - Dependency: G1-07.
+  - Output: all 36 assigned module declarations, replaceable placeholders, and `rust/tests/registry.rs`.
+  - Acceptance: `cargo fmt --check && cargo test` passes; the registry test imports every assigned algorithm path. Owners replace placeholders without editing `rust/src/algorithms/mod.rs`.
 
 ### Lane 2 — Parallel behavior-card preparation
 
-These are safe while G1-07 is pending because they create understanding and
+These are safe while G1-08 is pending because they create understanding and
 fixtures, not shared Rust changes.
 
 - [ ] **PREP-01 — Simha Teja — behavior cards for high-risk algorithms**
@@ -587,7 +593,7 @@ fixtures, not shared Rust changes.
 
 ### Lane 3 — Parallel algorithm packets
 
-All tasks below depend on G1-07 and the corresponding PREP task. Each checkbox
+All tasks below depend on G1-08 and the corresponding PREP task. Each checkbox
 means: implementation, focused native test, diff review, and a commit. The
 owner may use the standard AI prompt in Section 7, but must keep the AI inside
 the exact source/test paths shown in the ownership section.
@@ -615,10 +621,22 @@ the exact source/test paths shown in the ownership section.
 - [ ] **MAN-04 — Square-root NCD** — `compression/sqrt_ncd.rs` + native test.
 - [ ] **MAN-05 — Entropy NCD** — `compression/entropy_ncd.rs` + native test.
 - [ ] **MAN-06 — BZ2 NCD** — `compression/bz2_ncd.rs` + native test.
+  - Dependency: G1-08, PREP-02, and DEP-03.
 - [ ] **MAN-07 — LZMA NCD** — `compression/lzma_ncd.rs` + native test.
+  - Dependency: G1-08, PREP-02, and DEP-03.
 - [ ] **MAN-08 — ZLIB NCD** — `compression/zlib_ncd.rs` + native test.
+  - Dependency: G1-08, PREP-02, and DEP-03.
 - [ ] **MAN-09 — dependency handoff** — `docs/dependency-notes/manasa.md`.
-  - Acceptance: Simha Teja can update Cargo dependencies without reverse-engineering Manasa’s choices.
+  - Acceptance: the note identifies reviewed candidates such as `bzip2`, `xz2` or a pure-Rust LZMA alternative, and `flate2`, plus feature flags, system-library requirements, licenses, settings, and fixed expected-output risks.
+
+- [ ] **DEP-02 — Simha Teja — integrate reviewed compression dependencies**
+  - Dependency: MAN-09.
+  - Output: reviewed `Cargo.toml` and `Cargo.lock` changes only for the required compression support.
+  - Acceptance: dependency resolution and a minimal Rust compression smoke check pass; no algorithm owner edits `Cargo.toml`.
+- [ ] **DEP-03 — Manasa — validate the compression dependency lane**
+  - Dependency: DEP-02.
+  - Output: compile/smoke evidence for BZ2, LZMA, and ZLIB packets under `proof/` or the focused native tests.
+  - Acceptance: all three packets can compile against the frozen dependency choices before their final differential fixtures are added.
 
 #### Poojitha’s packets
 
@@ -691,11 +709,13 @@ These tasks are intentionally sequential after the parallel packets.
 ```text
 G0-01 → G0-02 → G0-04 → G0-05
             │
-            └────────── G1-01 → G1-02 → G1-03 → G1-04 → G1-06 → G1-07
-                                      │                         │
-                                      └── PREP-01..04 ───────────┘
-                                                                │
-                                      SIM/MAN/POO/SUR packets ────┘
+            └────────── G1-01 → G1-02 → G1-03 → G1-04 → G1-06 → G1-07 → G1-08
+                                                                        │
+                                      PREP-01..04 ──────────────────────┘
+                                                                        │
+                                      SIM/MAN/POO/SUR packets ───────────┘
+                                                                        │
+                                      MAN-09 → DEP-02 → DEP-03 → MAN-06..08
                                                             │
                                       SIM-10 → INT-01 → INT-02
                                                             │
