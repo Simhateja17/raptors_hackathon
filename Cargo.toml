@@ -1,0 +1,19 @@
+[package]
+name = "textdistance-port"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Rust port of the TextDistance algorithms"
+
+[lib]
+name = "textdistance_port"
+path = "rust/src/lib.rs"
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = []
+python = []
+
+[[test]]
+name = "core_contract"
+path = "rust/tests/common.rs"
