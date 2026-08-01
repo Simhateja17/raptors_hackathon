@@ -1,10 +1,13 @@
+# built-in
 import contextlib
 import datetime
 import io
 import tempfile
 from typing import List, TypeVar
 
+# external
 import atheris
+
 
 T = TypeVar("T")
 
