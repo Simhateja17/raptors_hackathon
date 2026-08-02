@@ -624,7 +624,8 @@ the exact source/test paths shown in the ownership section.
   - Evidence: `cargo test --test algorithm_strcmp95` (3 passed); original floating-point fixtures, preprocessing, empty/equal, long-string option, and Unicode cases covered.
 - [x] **SIM-07 — MLIPNS** — `edit/mlipns.rs` + native test.
   - Evidence: `cargo test --test algorithm_mlipns` (3 passed); original binary-similarity fixtures, threshold configuration, Unicode, q-grams, integers, and normalization covered.
-- [ ] **SIM-08 — Arithmetic NCD** — `compression/arith_ncd.rs` + native test.
+- [x] **SIM-08 — Arithmetic NCD** — `compression/arith_ncd.rs` + native test.
+  - Evidence: `cargo test --test algorithm_arith_ncd` (3 passed); original NCD values, stable probability ordering, exact `BANANA` numerator, empty, and q-gram cases covered.
 - [ ] **SIM-09 — LCS sequence** — `sequence/lcsseq.rs` + native test.
   - Dependency: G1-09 because the source call returns a sequence.
 - [ ] **SIM-10 — FFI contract implementation** — `python_adapter/**`.
