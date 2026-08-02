@@ -223,7 +223,7 @@ class Tanimoto(Jaccard):
     They should contain hashable items.
     The return value is a float between -inf and 0, where 0 means equal,
     and -inf totally different
-    
+
     This is identical to the Jaccard similarity coefficient
     and the Tversky index for alpha=1 and beta=1.
 
@@ -244,7 +244,7 @@ class MongeElkan(_BaseSimilarity):
     They should contain hashable items.
     The return value is a float between 0 and 2, where 2 means equal,
     and 0 totally different.
-    
+
     https://www.academia.edu/200314/Generalized_Monge-Elkan_Method_for_Approximate_Text_String_Comparison
     http://www.cs.cmu.edu/~wcohen/postscript/kdd-2003-match-ws.pdf
     https://github.com/Yomguithereal/talisman/blob/master/src/metrics/monge-elkan.js
@@ -302,9 +302,9 @@ class Bag(_Base):
     Compute the Bag distance between two sequences.
     They should contain hashable items.
     The return value is a float between 0 and N, where 0 means equal,
-    and N totally different. N would, at most, be the length of the 
+    and N totally different. N would, at most, be the length of the
     longest sequence in the comparison.
-    
+
     http://www-db.disi.unibo.it/research/papers/SPIRE02.pdf
     https://github.com/Yomguithereal/talisman/blob/master/src/metrics/bag.js
     """
