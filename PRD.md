@@ -646,13 +646,15 @@ the exact source/test paths shown in the ownership section.
   - Dependency: G1-10, PREP-02, and DEP-03.
 - [ ] **MAN-08 — ZLIB NCD** — `compression/zlib_ncd.rs` + native test.
   - Dependency: G1-10, PREP-02, and DEP-03.
-- [ ] **MAN-09 — dependency handoff** — `docs/dependency-notes/manasa.md`.
+- [x] **MAN-09 — dependency handoff** — `docs/dependency-notes/manasa.md`.
   - Acceptance: the note identifies reviewed candidates such as `bzip2`, `xz2` or a pure-Rust LZMA alternative, and `flate2`, plus feature flags, system-library requirements, licenses, settings, and fixed expected-output risks.
+  - Evidence: `docs/dependency-notes/manasa.md` merged from Manasa's branch as `a6d8745`.
 
-- [ ] **DEP-02 — Simha Teja — integrate reviewed compression dependencies**
+- [x] **DEP-02 — Simha Teja — integrate reviewed compression dependencies**
   - Dependency: MAN-09.
   - Output: reviewed `Cargo.toml` and `Cargo.lock` changes only for the required compression support.
   - Acceptance: dependency resolution and a minimal Rust compression smoke check pass; no algorithm owner edits `Cargo.toml`.
+  - Evidence: `bzip2 = 0.4.4` with `static`, `xz2 = 0.1.7` with `static`, and `flate2 = 1.1.9` resolve and compile; BZ2/XZ/ZLIB encoder smoke check passed; `cargo fmt --check && cargo test` passed.
 - [ ] **DEP-03 — Manasa — validate the compression dependency lane**
   - Dependency: DEP-02.
   - Output: compile/smoke evidence for BZ2, LZMA, and ZLIB packets under `proof/` or the focused native tests.
