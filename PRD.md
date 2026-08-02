@@ -618,7 +618,8 @@ the exact source/test paths shown in the ownership section.
   - Evidence: `cargo test --test algorithm_needleman_wunsch` (3 passed); identity, matrix, gap, empty, Unicode, q-gram, and normalization cases covered.
 - [x] **SIM-04 — Smith-Waterman** — `edit/smith_waterman.rs` + native test.
   - Evidence: `cargo test --test algorithm_smith_waterman` (3 passed); local zero-reset, matrix, gap, empty/equal, Unicode, q-gram, and normalization cases covered.
-- [ ] **SIM-05 — Gotoh** — `edit/gotoh.rs` + native test.
+- [x] **SIM-05 — Gotoh** — `edit/gotoh.rs` + native test.
+  - Evidence: `cargo test --test algorithm_gotoh` (3 passed); affine gap, empty/equal, Unicode, q-gram, and inherited normalization cases covered.
 - [ ] **SIM-06 — StrCmp95** — `edit/strcmp95.rs` + native test.
 - [ ] **SIM-07 — MLIPNS** — `edit/mlipns.rs` + native test.
 - [ ] **SIM-08 — Arithmetic NCD** — `compression/arith_ncd.rs` + native test.
