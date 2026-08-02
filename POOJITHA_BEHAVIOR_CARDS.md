@@ -306,12 +306,15 @@ Additional behavior to preserve:
 - `maximum` is delegated to the underlying algorithm and then expanded using
   the source's per-token maximum loop, so it is not always `1`.
 
-### Compatibility risk
+### Rust representation
 
-The Python `algorithm` option is a polymorphic object with a `.similarity`
-method. The frozen Rust trait does not yet define the equivalent callback
-boundary. The packet must not silently remove this option; the exact Rust
-adapter shape needs a shared API decision before final integration.
+The merged shared contract provides `SimilarityComparator`, and the built-in
+Damerau-Levenshtein and Jaro-Winkler packets now implement the shared
+`Algorithm` trait. The Rust packet stores the selected built-in algorithm
+behind that comparator seam, converts each outer token into the prepared
+sequence seen by the underlying algorithm, and retains the source maximum
+calculation. An arbitrary Python callback remains an adapter-level
+`UnsupportedCustomComparator` error, as required by the shared contract.
 
 ## 7. Bag
 
@@ -394,13 +397,13 @@ For example, `LCSStr(qval=2)("abcd")` returns `"abcd"`, while
 `LCSStr(qval=2)("test", "text")` returns the matching q-gram sequence
 `[("t", "e")]` in the Python representation.
 
-### Compatibility risk
+### Rust representation
 
-The Python call returns a string/list sequence, while the shared Rust
-`Algorithm` trait exposes a numeric raw score. The Rust packet needs an
-algorithm-specific substring-returning method, with the trait score equal to
-the returned sequence length; the adapter must convert that result back to the
-Python-visible type.
+The merged `OutputAlgorithm` contract carries the returned substring as
+`AlgorithmOutput::Sequence`; its scalar value is the substring length for
+similarity/distance conversion. The packet also exposes the raw-input call
+order through `output_inputs`, so empty and single-input cases happen before
+q-value preparation exactly as in Python.
 
 ## 9. RLE NCD
 
@@ -463,8 +466,9 @@ produce zero.
 
 These are concrete gaps between an observable Python call and the currently
 frozen Rust trait. They are recorded here so the adapter owner can resolve them
-without guessing. Monge-Elkan and LCSStr remain blocked in Lane 3 until their
-shared adapter contract is resolved.
+without guessing. The Monge-Elkan comparator and LCSStr output seams are now
+implemented; the remaining rows are compatibility handoffs rather than hidden
+behavior changes.
 
 | Area | Original Python call | Expected output/error | Proposed Rust representation |
 | --- | --- | --- | --- |
@@ -475,21 +479,19 @@ shared adapter contract is resolved.
 | Tversky short biased coefficients | `Tversky(ks=[1], bias=0.5)("a", "b")` | `ValueError: not enough values to unpack (expected 2, got 1)` | Fallible `try_similarity`/`Result` API with a `MissingCoefficient` error; do not silently invent `beta` |
 | Tversky zero denominator | `Tversky(ks=[0, 0])("a", "b")` | `ZeroDivisionError` | Fallible score API with a `ZeroDenominator` error |
 | Bag no arguments | `Bag()()` | `IndexError: tuple index out of range` | Fallible `try_raw_score` with an `EmptyInputList` error; the current numeric trait cannot carry this error |
-| Monge-Elkan algorithm option | `MongeElkan(algorithm=textdistance.jaro_winkler)(["Niall"], ["Neal"])` | `0.805` | Shared similarity-algorithm object/trait with `similarity`, `maximum`, and prepared-element support; blocked pending Simha's adapter decision |
-| LCSStr returned value | `LCSStr()("ababa", "babab")` | `"abab"`, not just numeric length `4` | Owned substring method returning `PreparedSequence` plus trait raw score `4`; adapter converts the sequence back to Python's return type; blocked pending Simha |
+| Monge-Elkan algorithm option | `MongeElkan(algorithm=textdistance.jaro_winkler)(["Niall"], ["Neal"])` | `0.805` | `MongeElkan::from_python(JaroWinkler::default(), ...)` stores the built-in algorithm behind `SimilarityComparator` and preserves token-to-sequence conversion; arbitrary callbacks remain an adapter error |
+| LCSStr returned value | `LCSStr()("ababa", "babab")` | `"abab"`, not just numeric length `4` | `OutputAlgorithm` returns `AlgorithmOutput::Sequence`; `output_inputs` preserves empty/single-input ordering and the adapter can reconstruct the source value |
 | RLE unsupported q-grams | `RLENCD(qval=2)("test", "text")` | `TypeError: sequence item 0: expected str instance, tuple found` | `Result<f64, RleError::UnsupportedElement>` at the adapter boundary; never stringify `Element::Gram` |
 | RLE unsupported integers | `RLENCD()([1, 2], [1, 2])` | `TypeError: sequence item 0: expected str instance, int found` | Same fallible RLE API, rejecting `Byte`, `Integer`, and `Boolean` elements clearly |
 | Optional external dispatch | `Jaccard(external=True)("test", "text")` | `0.6`; third-party dispatch is an optimization, not a different answer | Preserve an accepted `external` option in the compatibility layer, but keep the Rust core independent and ignore dispatch as required by the main PRD |
-| Native test discovery | `cargo test --test poojitha` for the owned native harness | Cargo reports `error: no test target named poojitha` because the frozen `Cargo.toml` declares only `core_contract` and `registry` | Simha should add an explicit `[[test]]` entry for `rust/tests/poojitha.rs` (or an equivalent shared test-discovery rule); until then, run the owned harness with the documented direct `rustc --test` command |
+| Native test discovery | `cargo test --test algorithm_monge_elkan` and the other direct Poojitha targets | Cargo discovers and runs the focused tests under package-root `tests/`; the legacy aggregate `poojitha` target remains intentionally undeclared | Each owned `tests/algorithm_<name>.rs` includes its focused packet under `rust/tests/algorithms/`, so no shared `Cargo.toml` or harness change is required |
 
 These are recorded as coordination items rather than changed or hidden. The
 main PRD requires shared API ownership and prohibits an algorithm owner from
-silently changing the frozen core contract. Lane 3 therefore implements every
-valid prepared-sequence calculation in the owned files, while the listed
-fallible/callback/return-value cases remain explicit handoff items.
+silently changing the frozen core contract. Lane 3 implements every valid
+prepared-sequence calculation in the owned files, while arbitrary callbacks
+remain an explicit adapter error as specified by the shared contract.
 
-The native test-discovery row is a build-configuration gap, not an algorithm
-behavior change. It is recorded here because the main PRD requires focused
-native tests while the current shared Cargo manifest does not discover the
-owned harness, and the owner boundary forbids changing that manifest in this
-packet.
+The legacy aggregate harness is not a Cargo target by design. The direct
+package-root algorithm targets are the production test entry points and now
+execute all nine Poojitha packets without changing the shared manifest.
