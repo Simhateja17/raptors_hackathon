@@ -7,8 +7,10 @@ pub mod algorithms;
 pub mod core;
 
 pub use core::{
-    all_identical, maximum_length, normalize_distance, normalize_similarity, prepare_sequences,
-    Algorithm, Element, InputError, InputSequence, PreparedSequence, QValue, ScoreMode, Sequence,
+    all_identical, maximum_length, normalize_distance, normalize_similarity, output_distance,
+    output_similarity, prepare_sequences, Algorithm, AlgorithmError, AlgorithmOutput, Element,
+    InputError, InputSequence, OutputAlgorithm, PreparedSequence, QValue, ScoreMode, Sequence,
+    SimilarityComparator,
 };
 
 /// Port version.  The source package has an existing 4.6.2/4.6.3 metadata

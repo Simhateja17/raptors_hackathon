@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "Rust port of the TextDistance algorithms"
+# Native algorithm tests live directly under the package-root tests/ directory.
+# Cargo discovers each tests/algorithm_<name>.rs file automatically.
 
 [lib]
 name = "textdistance_port"
