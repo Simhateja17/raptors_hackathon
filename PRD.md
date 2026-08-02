@@ -4,7 +4,7 @@
 
 ### Chosen track
 
-**D: Python → Rust**
+Track D: Python → Rust
 
 ### Chosen repository
 
@@ -44,7 +44,7 @@ The submission is judged on proof that the port holds up—not on how many lines
 ### Must ship
 
 1. A standalone Rust crate containing the algorithm implementation.
-2. Public classes and singleton functions from the exported modules:
+1. Public classes and singleton functions from the exported modules:
 
    - Edit: Hamming, Levenshtein, Damerau-Levenshtein, Jaro, Jaro-Winkler, StrCmp95, Needleman-Wunsch, Gotoh, Smith-Waterman, MLIPNS.
    - Token: Jaccard, Sørensen/Dice, Tversky, Overlap, Cosine, Tanimoto, Monge-Elkan, Bag.
@@ -53,12 +53,12 @@ The submission is judged on proof that the port holds up—not on how many lines
    - Phonetic: MRA and Editex.
    - Simple: Prefix, Postfix, Length, Identity, Matrix.
 
-3. Common methods where applicable: `distance`, `similarity`, `maximum`, `normalized_distance`, and `normalized_similarity`.
-4. Constructor options used by the public API, especially `qval`, `as_set`, edit costs, and algorithm-specific options.
-5. Correct behavior for empty inputs, equal inputs, Unicode strings, q-grams, word splitting, and integer sequences covered by the original tests.
-6. An unchanged copy of the complete original `tests/` tree under `tests/original/` plus its manifest.
-7. An adapter that lets the unchanged original tests exercise the Rust implementation.
-8. Differential fixtures/harness, fuzzing, benchmark report, `README.md`, `DECISIONS.md`, and a five-minute demo path.
+1. Common methods where applicable: `distance`, `similarity`, `maximum`, `normalized_distance`, and `normalized_similarity`.
+1. Constructor options used by the public API, especially `qval`, `as_set`, edit costs, and algorithm-specific options.
+1. Correct behavior for empty inputs, equal inputs, Unicode strings, q-grams, word splitting, and integer sequences covered by the original tests.
+1. An unchanged copy of the complete original `tests/` tree under `tests/original/` plus its manifest.
+1. An adapter that lets the unchanged original tests exercise the Rust implementation.
+1. Differential fixtures/harness, fuzzing, benchmark report, `README.md`, `DECISIONS.md`, and a five-minute demo path.
 
 ### Explicitly out of scope
 
@@ -256,7 +256,7 @@ Makefile
 The algorithm count is intentionally not identical because the algorithms have different risk. The target is balanced effort, not equal line count.
 
 | Owner | Algorithm packets | Shared responsibility | Workload shape |
-|---|---:|---|---|
+| --- | ---: | --- | --- |
 | Simha Teja | 9 | Core, API, FFI, integration fixes | Fewer packets, highest algorithm and integration risk |
 | Manasa | 8 | Compression dependencies and numeric fixtures | Fewer packets, higher compatibility risk |
 | Poojitha | 9 | Token/sequence invariants and q-gram examples | More bounded packets, medium algorithm risk |
@@ -271,13 +271,13 @@ The team’s job is to direct and verify the AI, not to accept generated code bl
 For every algorithm, the owner follows this loop:
 
 1. Read the corresponding Python source and original tests.
-2. Write a short behavior card: inputs, outputs, edge cases, options, and 3–5 expected examples.
-3. Ask the AI to edit only the named algorithm file and its matching native test file.
-4. Require the AI to explain each non-obvious translation and identify any source-language semantic risk.
-5. Run the focused test command.
-6. Inspect `git diff`, reject unrelated files, and ask the AI for a review of the diff.
-7. Commit one algorithm or one tightly coupled pair at a time.
-8. Record failures with the exact command and output; do not patch around a failing assertion without understanding it.
+1. Write a short behavior card: inputs, outputs, edge cases, options, and 3–5 expected examples.
+1. Ask the AI to edit only the named algorithm file and its matching native test file.
+1. Require the AI to explain each non-obvious translation and identify any source-language semantic risk.
+1. Run the focused test command.
+1. Inspect `git diff`, reject unrelated files, and ask the AI for a review of the diff.
+1. Commit one algorithm or one tightly coupled pair at a time.
+1. Record failures with the exact command and output; do not patch around a failing assertion without understanding it.
 
 ### Standard implementation prompt
 
@@ -340,10 +340,10 @@ The following rule is mandatory: **one file, one owner**.
 **Owner:** Suri, with all members observing.
 
 1. Verify the working tree and record the current baseline commit.
-2. Copy the complete original `tests/` tree byte-for-byte to `tests/original/`.
-3. Generate a sorted SHA-256 manifest.
-4. Record Python version, dependency versions, and baseline test command/result.
-5. Tag the repository state `BASELINE-FROZEN`.
+1. Copy the complete original `tests/` tree byte-for-byte to `tests/original/`.
+1. Generate a sorted SHA-256 manifest.
+1. Record Python version, dependency versions, and baseline test command/result.
+1. Tag the repository state `BASELINE-FROZEN`.
 
 No one edits the copied tests after this gate.
 
@@ -352,10 +352,10 @@ No one edits the copied tests after this gate.
 **Owner:** Simha Teja.
 
 1. Create the Rust crate and common representation.
-2. Define algorithm trait/struct conventions and adapter names.
-3. Define module declarations and the adapter-facing contract; Simha Teja seeds all compile-visible module paths and placeholders, while algorithm owners replace placeholders only inside their own module files.
-4. Document supported input representations and error behavior.
-5. Tag `API-FREEZE`.
+1. Define algorithm trait/struct conventions and adapter names.
+1. Define module declarations and the adapter-facing contract; Simha Teja seeds all compile-visible module paths and placeholders, while algorithm owners replace placeholders only inside their own module files.
+1. Document supported input representations and error behavior.
+1. Tag `API-FREEZE`.
 
 Poojitha, Manasa, and Suri do not begin algorithm implementation until this gate exists. They may prepare behavior cards and fixtures before it; after the registry sub-gate, their assigned files can proceed independently.
 
@@ -375,10 +375,10 @@ Each algorithm owner must provide native tests before handing off.
 **Owner:** Suri; FFI/API fixes by Simha Teja only.
 
 1. Build the Rust extension and thin adapter.
-2. Run unchanged original tests through the adapter.
-3. Categorize every failure as adapter, algorithm, numeric tolerance, missing dependency, or expected unsupported input.
-4. Route each failure to exactly one owner.
-5. Do not move to fuzzing until the full non-external original suite passes.
+1. Run unchanged original tests through the adapter.
+1. Categorize every failure as adapter, algorithm, numeric tolerance, missing dependency, or expected unsupported input.
+1. Route each failure to exactly one owner.
+1. Do not move to fuzzing until the full non-external original suite passes.
 
 Target: all unchanged original tests pass, including `test_external.py` when the documented optional test dependencies are installed. The non-external suite is the first integration gate; any environment-only external failure must include the exact dependency and command needed to reproduce it.
 
@@ -409,12 +409,12 @@ Target: all unchanged original tests pass, including `test_external.py` when the
 ### Evidence ladder
 
 1. **Compile evidence:** clean Rust build from a fresh checkout.
-2. **Unit evidence:** native Rust tests for every algorithm packet.
-3. **Original-suite evidence:** unchanged Python tests through the adapter, with SHA-256 manifest.
-4. **Differential evidence:** fixed corpus comparing baseline outputs and port outputs over strings, Unicode, empty values, q-grams, and integer sequences.
-5. **Fuzz evidence:** randomized inputs exercising all algorithms and common methods, with saved seed and duration.
-6. **Performance evidence:** baseline versus Rust benchmark on identical cases; report both speed and any memory trade-off.
-7. **Reproducibility evidence:** one command that builds, tests, runs proof checks, and exits nonzero on failure.
+1. **Unit evidence:** native Rust tests for every algorithm packet.
+1. **Original-suite evidence:** unchanged Python tests through the adapter, with SHA-256 manifest.
+1. **Differential evidence:** fixed corpus comparing baseline outputs and port outputs over strings, Unicode, empty values, q-grams, and integer sequences.
+1. **Fuzz evidence:** randomized inputs exercising all algorithms and common methods, with saved seed and duration.
+1. **Performance evidence:** baseline versus Rust benchmark on identical cases; report both speed and any memory trade-off.
+1. **Reproducibility evidence:** one command that builds, tests, runs proof checks, and exits nonzero on failure.
 
 ### Minimum proof corpus
 
@@ -447,7 +447,7 @@ The README must also show the underlying commands so judges can audit the wrappe
 ## 12. Risk register and mitigation
 
 | Risk | Impact | Mitigation | Owner |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | PyO3 adapter becomes the bottleneck | Original tests cannot run | Freeze a small adapter contract at G1; implement only public methods used by tests; use native tests in parallel | Simha Teja/Suri |
 | Generic Python sequences are difficult to represent in pure Rust | Hidden compatibility failures | Explicitly support strings, bytes, and integer sequences first; reject unsupported objects clearly; document the boundary | Simha Teja |
 | Unicode byte/code-point mismatch | Many subtle failures | Convert Python strings to Rust `char` sequences and add Unicode fixtures before family work | Simha Teja |
@@ -462,7 +462,7 @@ The README must also show the underlying commands so judges can audit the wrappe
 Use the official kickoff as `H0`; the deadline is `H+72`.
 
 | Window | Outcome |
-|---|---|
+| --- | --- |
 | H0–H+2 | G0 baseline freeze, test hash, toolchain, branches, API decisions |
 | H+2–H+8 | G1 core/API/FFI freeze; Suri proof shell |
 | H+8–H+34 | Parallel algorithm implementation and native tests |
@@ -591,9 +591,10 @@ fixtures, not shared Rust changes.
   - Output: source/test notes for Levenshtein, Damerau-Levenshtein, Needleman-Wunsch, Smith-Waterman, Gotoh, StrCmp95, MLIPNS, Arithmetic NCD, and LCS sequence.
   - Acceptance: each note lists inputs, options, empty/equal behavior, numeric expectations, and source test references.
   - Evidence: `docs/behavior-cards/simha.md`.
-- [ ] **PREP-02 — Manasa — compression and phonetic compatibility cards**
+- [x] **PREP-02 — Manasa — compression and phonetic compatibility cards**
   - Output: notes for Jaro, Jaro-Winkler, Editex, Sqrt NCD, Entropy NCD, BZ2 NCD, LZMA NCD, and ZLIB NCD.
   - Acceptance: compressor settings, dependencies, numeric tolerance, and known output risks are explicit.
+  - Evidence: `docs/behavior-cards/manasa/*.md` (8 files), merged from Manasa's branch as `d689a84`.
 - [ ] **PREP-03 — Poojitha — token and sequence behavior cards**
   - Output: notes for Hamming, Jaccard, Sørensen, Tversky, Cosine, Monge-Elkan, Bag, LCS substring, and RLE NCD.
   - Acceptance: set/multiset behavior, q-grams, repeated tokens, tie-breaking, and fixed examples are explicit.
@@ -635,28 +636,39 @@ the exact source/test paths shown in the ownership section.
 
 #### Manasa’s packets
 
-- [ ] **MAN-01 — Jaro** — `edit/jaro.rs` + native test.
-- [ ] **MAN-02 — Jaro-Winkler** — `edit/jaro_winkler.rs` + native test.
-- [ ] **MAN-03 — Editex** — `phonetic/editex.rs` + native test.
-- [ ] **MAN-04 — Square-root NCD** — `compression/sqrt_ncd.rs` + native test.
-- [ ] **MAN-05 — Entropy NCD** — `compression/entropy_ncd.rs` + native test.
-- [ ] **MAN-06 — BZ2 NCD** — `compression/bz2_ncd.rs` + native test.
+- [x] **MAN-01 — Jaro** — `edit/jaro.rs` + native test.
+  - Evidence: `cargo test --test algorithm_jaro` (6 passed); all 8 frozen fixture values from `test_jaro.py`, empty/identical/no-match edge cases, and the constant-`maximum()` regression case covered.
+- [x] **MAN-02 — Jaro-Winkler** — `edit/jaro_winkler.rs` + native test.
+  - Evidence: `cargo test --test algorithm_jaro_winkler` (8 passed); all 7 frozen fixture values from `test_jaro_winkler.py`, prefix-boost vs. plain-Jaro comparison, and `long_tolerance` branch (unexercised by the frozen suite) covered.
+- [x] **MAN-03 — Editex** — `phonetic/editex.rs` + native test.
+  - Evidence: `cargo test --test algorithm_editex` (7 passed); all 17 non-local and 13 local frozen fixture values from `test_editex.py` covered, plus a regression test for the empty-input `quick_answer` shortcut (natural DP gives 13 for `''`/`'neilsen'`; frozen value is 14).
+- [x] **MAN-04 — Square-root NCD** — `compression/sqrt_ncd.rs` + native test.
+  - Evidence: `cargo test --test algorithm_sqrt_ncd` (6 passed); both frozen fixture values from `test_sqrt_ncd.py`, plus a regression test confirming identical inputs do *not* score zero (no `quick_answer` shortcut in the NCD family).
+- [x] **MAN-05 — Entropy NCD** — `compression/entropy_ncd.rs` + native test.
+  - Evidence: `cargo test --test algorithm_entropy_ncd` (7 passed); all 3 frozen fixture values from `test_entropy_ncd.py` (converted from similarity to distance), plus a `base` parameter regression test.
+- [x] **MAN-06 — BZ2 NCD** — `compression/bz2_ncd.rs` + native test.
   - Dependency: G1-10, PREP-02, and DEP-03.
-- [ ] **MAN-07 — LZMA NCD** — `compression/lzma_ncd.rs` + native test.
+  - Evidence: `cargo test --test algorithm_bz2_ncd` (6 passed); both frozen fixture values from `test_bz2_ncd.py` matched exactly against the `bzip2` crate's output.
+- [x] **MAN-07 — LZMA NCD** — `compression/lzma_ncd.rs` + native test.
   - Dependency: G1-10, PREP-02, and DEP-03.
-- [ ] **MAN-08 — ZLIB NCD** — `compression/zlib_ncd.rs` + native test.
+  - Evidence: `cargo test --test algorithm_lzma_ncd` (7 passed); no frozen fixtures exist for this algorithm (confirmed absent from `tests/original/`), so reference values were generated by running the real, unmodified `textdistance.lzma_ncd` and confirmed to match the `xz2` crate's output exactly.
+- [x] **MAN-08 — ZLIB NCD** — `compression/zlib_ncd.rs` + native test.
   - Dependency: G1-10, PREP-02, and DEP-03.
-- [ ] **MAN-09 — dependency handoff** — `docs/dependency-notes/manasa.md`.
+  - Evidence: `cargo test --test algorithm_zlib_ncd` (6 passed); reference values generated from the real `textdistance.zlib_ncd` and confirmed to match the `flate2` crate's output exactly.
+- [x] **MAN-09 — dependency handoff** — `docs/dependency-notes/manasa.md`.
   - Acceptance: the note identifies reviewed candidates such as `bzip2`, `xz2` or a pure-Rust LZMA alternative, and `flate2`, plus feature flags, system-library requirements, licenses, settings, and fixed expected-output risks.
+  - Evidence: `docs/dependency-notes/manasa.md` merged from Manasa's branch as `a6d8745`.
 
-- [ ] **DEP-02 — Simha Teja — integrate reviewed compression dependencies**
+- [x] **DEP-02 — Simha Teja — integrate reviewed compression dependencies**
   - Dependency: MAN-09.
   - Output: reviewed `Cargo.toml` and `Cargo.lock` changes only for the required compression support.
   - Acceptance: dependency resolution and a minimal Rust compression smoke check pass; no algorithm owner edits `Cargo.toml`.
-- [ ] **DEP-03 — Manasa — validate the compression dependency lane**
+  - Evidence: `bzip2 = 0.4.4` with `static`, `xz2 = 0.1.7` with `static`, and `flate2 = 1.1.9` resolve and compile; BZ2/XZ/ZLIB encoder smoke check passed; `cargo fmt --check && cargo test` passed.
+- [x] **DEP-03 — Manasa — validate the compression dependency lane**
   - Dependency: DEP-02.
   - Output: compile/smoke evidence for BZ2, LZMA, and ZLIB packets under `proof/` or the focused native tests.
   - Acceptance: all three packets can compile against the frozen dependency choices before their final differential fixtures are added.
+  - Evidence: all three packets compile and pass against the frozen `DEP-02` dependency choices (`bzip2 0.4.4`/`static`, `xz2 0.1.7`/`static`, `flate2 1.1.9`) — `cargo test --test algorithm_bz2_ncd --test algorithm_lzma_ncd --test algorithm_zlib_ncd` (19 passed); full `cargo test` and `cargo fmt --check` also clean across the whole crate.
 
 #### Poojitha’s packets
 

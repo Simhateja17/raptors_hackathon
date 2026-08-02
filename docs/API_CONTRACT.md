@@ -28,7 +28,7 @@ They must not be stringified or silently coerced.
 `QValue::from_python` maps the source behavior as follows:
 
 | Python value | Rust meaning |
-|---|---|
+| --- | --- |
 | `None` or `0` | split text into whitespace-separated `Text` tokens |
 | `1` | compare individual elements |
 | `n > 1` | compare sliding n-grams represented as `Element::Gram` |
@@ -109,8 +109,8 @@ without an additional shared harness or `Cargo.toml` edit by an algorithm owner.
 ## Compatibility priorities
 
 1. Exact empty/equal behavior.
-2. Correct Unicode and sequence lengths.
-3. Correct constructor options and aliases.
-4. Correct multi-sequence behavior where the source supports it.
-5. Matching numeric results within the original test tolerance.
-6. Performance only after behavior is proven.
+1. Correct Unicode and sequence lengths.
+1. Correct constructor options and aliases.
+1. Correct multi-sequence behavior where the source supports it.
+1. Matching numeric results within the original test tolerance.
+1. Performance only after behavior is proven.
