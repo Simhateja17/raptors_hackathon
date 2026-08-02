@@ -31,8 +31,10 @@ fn bag_matches_source_examples() {
 #[test]
 fn bag_preserves_multiset_set_and_qgram_behavior() {
     let multiset = Bag::default();
-    let mut set = Bag::default();
-    set.as_set = true;
+    let set = Bag {
+        as_set: true,
+        ..Bag::default()
+    };
     let repeated = prepared("aaaa", "aa", QValue::Elements);
     assert_eq!(multiset.call(&repeated), 2.0);
     assert_eq!(set.call(&repeated), 1.0);
