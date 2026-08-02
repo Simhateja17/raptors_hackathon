@@ -616,7 +616,8 @@ the exact source/test paths shown in the ownership section.
   - Evidence: `cargo test --test algorithm_damerau_levenshtein` (3 passed); restricted and unrestricted fixtures covered.
 - [x] **SIM-03 — Needleman-Wunsch** — `edit/needleman_wunsch.rs` + native test.
   - Evidence: `cargo test --test algorithm_needleman_wunsch` (3 passed); identity, matrix, gap, empty, Unicode, q-gram, and normalization cases covered.
-- [ ] **SIM-04 — Smith-Waterman** — `edit/smith_waterman.rs` + native test.
+- [x] **SIM-04 — Smith-Waterman** — `edit/smith_waterman.rs` + native test.
+  - Evidence: `cargo test --test algorithm_smith_waterman` (3 passed); local zero-reset, matrix, gap, empty/equal, Unicode, q-gram, and normalization cases covered.
 - [ ] **SIM-05 — Gotoh** — `edit/gotoh.rs` + native test.
 - [ ] **SIM-06 — StrCmp95** — `edit/strcmp95.rs` + native test.
 - [ ] **SIM-07 — MLIPNS** — `edit/mlipns.rs` + native test.
