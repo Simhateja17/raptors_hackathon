@@ -1,14 +1,17 @@
+# built-in
 import itertools
 import sys
 from collections import defaultdict
-from typing import List, Dict, Type
-
-import atheris
-
-from fuzz_helpers import EnhancedFuzzedDataProvider
 from dataclasses import dataclass, field
+from typing import Dict, List, Type
+
+# external
+import atheris
+from fuzz_helpers import EnhancedFuzzedDataProvider
+
 
 with atheris.instrument_imports():
+    # project
     import textdistance
 
 
