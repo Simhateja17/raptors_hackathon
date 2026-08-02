@@ -179,7 +179,7 @@ impl ArithNCD {
 
         // Python Counter.most_common() sorts by descending count while
         // retaining first-seen order for ties. Vec::sort_by is stable.
-        counts.sort_by(|left, right| right.1.cmp(&left.1));
+        counts.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         counts
     }
 
