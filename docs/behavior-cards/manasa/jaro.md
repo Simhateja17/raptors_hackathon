@@ -30,16 +30,16 @@ this matters for file ownership.
 ## Algorithm (from `JaroWinkler.__call__`, with `winklerize=False`)
 
 1. If either string is empty, return `0.0`.
-2. `search_range = max(len(s1), len(s2)) // 2 - 1` (clamped to `>= 0`).
-3. For each character in `s1`, look for an unflagged matching character in
+1. `search_range = max(len(s1), len(s2)) // 2 - 1` (clamped to `>= 0`).
+1. For each character in `s1`, look for an unflagged matching character in
    `s2` within `[i - search_range, i + search_range]`; flag both sides on
    match. Count `common_chars`.
-4. If no characters matched, return `0.0`.
-5. Walk matched characters in order on both sides; every position where the
+1. If no characters matched, return `0.0`.
+1. Walk matched characters in order on both sides; every position where the
    matched characters differ counts as a transposition; final
    `trans_count // 2`.
-6. `weight = (common/len(s1) + common/len(s2) + (common - trans_count)/common) / 3`.
-7. Since `winklerize=False`, return `weight` directly (no prefix boost, no
+1. `weight = (common/len(s1) + common/len(s2) + (common - trans_count)/common) / 3`.
+1. Since `winklerize=False`, return `weight` directly (no prefix boost, no
    long-string adjustment).
 
 ## Inputs / options

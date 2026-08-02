@@ -15,14 +15,14 @@ would. Higher = more similar, max `1.0`.
 
 Everything through step 6 in the Jaro card is identical. From there:
 
-7. If `winklerize=False` **or** `weight <= 0.7`, return `weight` as-is
+1. If `winklerize=False` **or** `weight <= 0.7`, return `weight` as-is
    (same as Jaro — the boost only applies to already-fairly-similar
    strings).
-8. **Prefix boost:** find the length of the common prefix, up to 4
+1. **Prefix boost:** find the length of the common prefix, up to 4
    characters (`j = min(min_len, 4)`), by scanning while
    `s1[i] == s2[i]`. If any prefix matched (`i > 0`):
    `weight += i * prefix_weight * (1.0 - weight)`.
-9. **Long-string adjustment** (only if `long_tolerance=True` **and**
+1. **Long-string adjustment** (only if `long_tolerance=True` **and**
    `min_len > 4`, and only if `common_chars > i + 1` and
    `2 * common_chars >= min_len + i`):
    `tmp = (common_chars - i - 1) / (s1_len + s2_len - i*2 + 2)`;
