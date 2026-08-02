@@ -4,7 +4,7 @@
 
 ### Chosen track
 
-**D: Python → Rust**
+Track D: Python → Rust
 
 ### Chosen repository
 
@@ -44,7 +44,7 @@ The submission is judged on proof that the port holds up—not on how many lines
 ### Must ship
 
 1. A standalone Rust crate containing the algorithm implementation.
-2. Public classes and singleton functions from the exported modules:
+1. Public classes and singleton functions from the exported modules:
 
    - Edit: Hamming, Levenshtein, Damerau-Levenshtein, Jaro, Jaro-Winkler, StrCmp95, Needleman-Wunsch, Gotoh, Smith-Waterman, MLIPNS.
    - Token: Jaccard, Sørensen/Dice, Tversky, Overlap, Cosine, Tanimoto, Monge-Elkan, Bag.
@@ -53,12 +53,12 @@ The submission is judged on proof that the port holds up—not on how many lines
    - Phonetic: MRA and Editex.
    - Simple: Prefix, Postfix, Length, Identity, Matrix.
 
-3. Common methods where applicable: `distance`, `similarity`, `maximum`, `normalized_distance`, and `normalized_similarity`.
-4. Constructor options used by the public API, especially `qval`, `as_set`, edit costs, and algorithm-specific options.
-5. Correct behavior for empty inputs, equal inputs, Unicode strings, q-grams, word splitting, and integer sequences covered by the original tests.
-6. An unchanged copy of the complete original `tests/` tree under `tests/original/` plus its manifest.
-7. An adapter that lets the unchanged original tests exercise the Rust implementation.
-8. Differential fixtures/harness, fuzzing, benchmark report, `README.md`, `DECISIONS.md`, and a five-minute demo path.
+1. Common methods where applicable: `distance`, `similarity`, `maximum`, `normalized_distance`, and `normalized_similarity`.
+1. Constructor options used by the public API, especially `qval`, `as_set`, edit costs, and algorithm-specific options.
+1. Correct behavior for empty inputs, equal inputs, Unicode strings, q-grams, word splitting, and integer sequences covered by the original tests.
+1. An unchanged copy of the complete original `tests/` tree under `tests/original/` plus its manifest.
+1. An adapter that lets the unchanged original tests exercise the Rust implementation.
+1. Differential fixtures/harness, fuzzing, benchmark report, `README.md`, `DECISIONS.md`, and a five-minute demo path.
 
 ### Explicitly out of scope
 
@@ -256,7 +256,7 @@ Makefile
 The algorithm count is intentionally not identical because the algorithms have different risk. The target is balanced effort, not equal line count.
 
 | Owner | Algorithm packets | Shared responsibility | Workload shape |
-|---|---:|---|---|
+| --- | ---: | --- | --- |
 | Simha Teja | 9 | Core, API, FFI, integration fixes | Fewer packets, highest algorithm and integration risk |
 | Manasa | 8 | Compression dependencies and numeric fixtures | Fewer packets, higher compatibility risk |
 | Poojitha | 9 | Token/sequence invariants and q-gram examples | More bounded packets, medium algorithm risk |
@@ -271,13 +271,13 @@ The team’s job is to direct and verify the AI, not to accept generated code bl
 For every algorithm, the owner follows this loop:
 
 1. Read the corresponding Python source and original tests.
-2. Write a short behavior card: inputs, outputs, edge cases, options, and 3–5 expected examples.
-3. Ask the AI to edit only the named algorithm file and its matching native test file.
-4. Require the AI to explain each non-obvious translation and identify any source-language semantic risk.
-5. Run the focused test command.
-6. Inspect `git diff`, reject unrelated files, and ask the AI for a review of the diff.
-7. Commit one algorithm or one tightly coupled pair at a time.
-8. Record failures with the exact command and output; do not patch around a failing assertion without understanding it.
+1. Write a short behavior card: inputs, outputs, edge cases, options, and 3–5 expected examples.
+1. Ask the AI to edit only the named algorithm file and its matching native test file.
+1. Require the AI to explain each non-obvious translation and identify any source-language semantic risk.
+1. Run the focused test command.
+1. Inspect `git diff`, reject unrelated files, and ask the AI for a review of the diff.
+1. Commit one algorithm or one tightly coupled pair at a time.
+1. Record failures with the exact command and output; do not patch around a failing assertion without understanding it.
 
 ### Standard implementation prompt
 
@@ -340,10 +340,10 @@ The following rule is mandatory: **one file, one owner**.
 **Owner:** Suri, with all members observing.
 
 1. Verify the working tree and record the current baseline commit.
-2. Copy the complete original `tests/` tree byte-for-byte to `tests/original/`.
-3. Generate a sorted SHA-256 manifest.
-4. Record Python version, dependency versions, and baseline test command/result.
-5. Tag the repository state `BASELINE-FROZEN`.
+1. Copy the complete original `tests/` tree byte-for-byte to `tests/original/`.
+1. Generate a sorted SHA-256 manifest.
+1. Record Python version, dependency versions, and baseline test command/result.
+1. Tag the repository state `BASELINE-FROZEN`.
 
 No one edits the copied tests after this gate.
 
@@ -352,10 +352,10 @@ No one edits the copied tests after this gate.
 **Owner:** Simha Teja.
 
 1. Create the Rust crate and common representation.
-2. Define algorithm trait/struct conventions and adapter names.
-3. Define module declarations and the adapter-facing contract; Simha Teja seeds all compile-visible module paths and placeholders, while algorithm owners replace placeholders only inside their own module files.
-4. Document supported input representations and error behavior.
-5. Tag `API-FREEZE`.
+1. Define algorithm trait/struct conventions and adapter names.
+1. Define module declarations and the adapter-facing contract; Simha Teja seeds all compile-visible module paths and placeholders, while algorithm owners replace placeholders only inside their own module files.
+1. Document supported input representations and error behavior.
+1. Tag `API-FREEZE`.
 
 Poojitha, Manasa, and Suri do not begin algorithm implementation until this gate exists. They may prepare behavior cards and fixtures before it; after the registry sub-gate, their assigned files can proceed independently.
 
@@ -375,10 +375,10 @@ Each algorithm owner must provide native tests before handing off.
 **Owner:** Suri; FFI/API fixes by Simha Teja only.
 
 1. Build the Rust extension and thin adapter.
-2. Run unchanged original tests through the adapter.
-3. Categorize every failure as adapter, algorithm, numeric tolerance, missing dependency, or expected unsupported input.
-4. Route each failure to exactly one owner.
-5. Do not move to fuzzing until the full non-external original suite passes.
+1. Run unchanged original tests through the adapter.
+1. Categorize every failure as adapter, algorithm, numeric tolerance, missing dependency, or expected unsupported input.
+1. Route each failure to exactly one owner.
+1. Do not move to fuzzing until the full non-external original suite passes.
 
 Target: all unchanged original tests pass, including `test_external.py` when the documented optional test dependencies are installed. The non-external suite is the first integration gate; any environment-only external failure must include the exact dependency and command needed to reproduce it.
 
@@ -409,12 +409,12 @@ Target: all unchanged original tests pass, including `test_external.py` when the
 ### Evidence ladder
 
 1. **Compile evidence:** clean Rust build from a fresh checkout.
-2. **Unit evidence:** native Rust tests for every algorithm packet.
-3. **Original-suite evidence:** unchanged Python tests through the adapter, with SHA-256 manifest.
-4. **Differential evidence:** fixed corpus comparing baseline outputs and port outputs over strings, Unicode, empty values, q-grams, and integer sequences.
-5. **Fuzz evidence:** randomized inputs exercising all algorithms and common methods, with saved seed and duration.
-6. **Performance evidence:** baseline versus Rust benchmark on identical cases; report both speed and any memory trade-off.
-7. **Reproducibility evidence:** one command that builds, tests, runs proof checks, and exits nonzero on failure.
+1. **Unit evidence:** native Rust tests for every algorithm packet.
+1. **Original-suite evidence:** unchanged Python tests through the adapter, with SHA-256 manifest.
+1. **Differential evidence:** fixed corpus comparing baseline outputs and port outputs over strings, Unicode, empty values, q-grams, and integer sequences.
+1. **Fuzz evidence:** randomized inputs exercising all algorithms and common methods, with saved seed and duration.
+1. **Performance evidence:** baseline versus Rust benchmark on identical cases; report both speed and any memory trade-off.
+1. **Reproducibility evidence:** one command that builds, tests, runs proof checks, and exits nonzero on failure.
 
 ### Minimum proof corpus
 
@@ -447,7 +447,7 @@ The README must also show the underlying commands so judges can audit the wrappe
 ## 12. Risk register and mitigation
 
 | Risk | Impact | Mitigation | Owner |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | PyO3 adapter becomes the bottleneck | Original tests cannot run | Freeze a small adapter contract at G1; implement only public methods used by tests; use native tests in parallel | Simha Teja/Suri |
 | Generic Python sequences are difficult to represent in pure Rust | Hidden compatibility failures | Explicitly support strings, bytes, and integer sequences first; reject unsupported objects clearly; document the boundary | Simha Teja |
 | Unicode byte/code-point mismatch | Many subtle failures | Convert Python strings to Rust `char` sequences and add Unicode fixtures before family work | Simha Teja |
@@ -462,7 +462,7 @@ The README must also show the underlying commands so judges can audit the wrappe
 Use the official kickoff as `H0`; the deadline is `H+72`.
 
 | Window | Outcome |
-|---|---|
+| --- | --- |
 | H0–H+2 | G0 baseline freeze, test hash, toolchain, branches, API decisions |
 | H+2–H+8 | G1 core/API/FFI freeze; Suri proof shell |
 | H+8–H+34 | Parallel algorithm implementation and native tests |
