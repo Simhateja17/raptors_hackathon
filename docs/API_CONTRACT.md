@@ -87,15 +87,16 @@ Monge-Elkan (including the `jaro_winkler` strategy used by the frozen tests),
 and reports `UnsupportedCustomComparator` for an arbitrary callback rather
 than invoking the original Python runtime.
 
-Native algorithm tests are direct Cargo integration-test roots under
-`rust/tests/`, named `algorithm_<name>.rs`. Cargo discovers these files without
-an additional shared harness or `Cargo.toml` edit by an algorithm owner.
+Native algorithm tests are direct Cargo integration-test roots under the
+package-root `tests/`, named `algorithm_<name>.rs`. Cargo discovers these files
+without an additional shared harness or `Cargo.toml` edit by an algorithm owner.
 
 ## File and ownership contract
 
 - One public algorithm per file under `rust/src/algorithms/`.
-- One focused native test file per algorithm directly under `rust/tests/`, for
-  example `rust/tests/algorithm_jaccard.rs`.
+- One focused native test file per algorithm directly under the package-root
+  `tests/`, for example `tests/algorithm_jaccard.rs`. Existing Python tests and
+  `tests/original/` remain unchanged.
 - All assigned module paths are declared in `rust/src/algorithms/mod.rs` from
   the scaffold. `rust/tests/registry.rs` imports every path so missing or
   misnamed packets fail at compile time.

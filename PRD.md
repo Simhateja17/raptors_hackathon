@@ -90,7 +90,7 @@ standalone Rust TextDistance core
 
 - Each public algorithm is implemented in one dedicated Rust file and tested in one dedicated native test file; this is what makes four-person parallel work safe.
 - Every assigned algorithm path is compile-visible from the scaffold. Simha Teja owns the shared registry, while each owner replaces only the placeholder in their assigned file; a registry test must import every packet.
-- Native algorithm tests live as unique files directly under `rust/tests/` (for example, `rust/tests/algorithm_jaccard.rs`). Cargo auto-discovers direct integration-test roots; owners must not create nested test files that require editing a shared harness.
+- Native algorithm tests live as unique files directly under the package-root `tests/` directory (for example, `tests/algorithm_jaccard.rs`). Cargo auto-discovers these direct integration-test roots; owners must not create nested test files or edit a shared harness.
 - Rust core logic must not import Python or depend on Python objects.
 - Python `str` must be handled as Unicode scalar values, matching Python’s code-point length behavior rather than byte length.
 - The adapter must cover strings, bytes, and integer sequences used by the original suite.
@@ -104,7 +104,7 @@ standalone Rust TextDistance core
 
 All four members are AI-assisted implementation owners. The human responsibility is to understand the source behavior, give the AI a narrow task, inspect the diff, run the acceptance checks, and explain the result. Nobody is expected to design or type the entire port manually.
 
-To prevent file conflicts, every public algorithm gets its own Rust source file and its own native test file. The shared module registry is owned by Simha Teja; he seeds the declarations and placeholders, and algorithm owners replace only their assigned implementation/test files. Native tests use unique direct files under `rust/tests/` so Cargo discovers them without a shared harness.
+To prevent file conflicts, every public algorithm gets its own Rust source file and its own native test file. The shared module registry is owned by Simha Teja; he seeds the declarations and placeholders, and algorithm owners replace only their assigned implementation/test files. Native tests use unique direct Rust files under the package-root `tests/` directory so Cargo discovers them without a shared harness. Existing Python tests and `tests/original/` are not edited.
 
 ### Simha Teja — architecture, highest-risk algorithms, and FFI
 
@@ -132,15 +132,15 @@ rust/src/algorithms/edit/strcmp95.rs
 rust/src/algorithms/edit/mlipns.rs
 rust/src/algorithms/compression/arith_ncd.rs
 rust/src/algorithms/sequence/lcsseq.rs
-rust/tests/algorithm_levenshtein.rs
-rust/tests/algorithm_damerau_levenshtein.rs
-rust/tests/algorithm_needleman_wunsch.rs
-rust/tests/algorithm_smith_waterman.rs
-rust/tests/algorithm_gotoh.rs
-rust/tests/algorithm_strcmp95.rs
-rust/tests/algorithm_mlipns.rs
-rust/tests/algorithm_arith_ncd.rs
-rust/tests/algorithm_lcsseq.rs
+tests/algorithm_levenshtein.rs
+tests/algorithm_damerau_levenshtein.rs
+tests/algorithm_needleman_wunsch.rs
+tests/algorithm_smith_waterman.rs
+tests/algorithm_gotoh.rs
+tests/algorithm_strcmp95.rs
+tests/algorithm_mlipns.rs
+tests/algorithm_arith_ncd.rs
+tests/algorithm_lcsseq.rs
 ```
 
 **Thinking tasks:** freeze the common API, decide the Rust sequence representation, resolve Unicode and numeric semantics, and review all cross-cutting changes.
@@ -160,14 +160,14 @@ rust/src/algorithms/compression/entropy_ncd.rs
 rust/src/algorithms/compression/bz2_ncd.rs
 rust/src/algorithms/compression/lzma_ncd.rs
 rust/src/algorithms/compression/zlib_ncd.rs
-rust/tests/algorithm_jaro.rs
-rust/tests/algorithm_jaro_winkler.rs
-rust/tests/algorithm_editex.rs
-rust/tests/algorithm_sqrt_ncd.rs
-rust/tests/algorithm_entropy_ncd.rs
-rust/tests/algorithm_bz2_ncd.rs
-rust/tests/algorithm_lzma_ncd.rs
-rust/tests/algorithm_zlib_ncd.rs
+tests/algorithm_jaro.rs
+tests/algorithm_jaro_winkler.rs
+tests/algorithm_editex.rs
+tests/algorithm_sqrt_ncd.rs
+tests/algorithm_entropy_ncd.rs
+tests/algorithm_bz2_ncd.rs
+tests/algorithm_lzma_ncd.rs
+tests/algorithm_zlib_ncd.rs
 ```
 
 **Thinking tasks:** document compressor settings and numerical tolerance, compare Rust crate behavior with fixed baseline fixtures, and identify any dependency or output-format risk before integration.
@@ -190,15 +190,15 @@ rust/src/algorithms/token/monge_elkan.rs
 rust/src/algorithms/token/bag.rs
 rust/src/algorithms/sequence/lcsstr.rs
 rust/src/algorithms/compression/rle_ncd.rs
-rust/tests/algorithm_hamming.rs
-rust/tests/algorithm_jaccard.rs
-rust/tests/algorithm_sorensen.rs
-rust/tests/algorithm_tversky.rs
-rust/tests/algorithm_cosine.rs
-rust/tests/algorithm_monge_elkan.rs
-rust/tests/algorithm_bag.rs
-rust/tests/algorithm_lcsstr.rs
-rust/tests/algorithm_rle_ncd.rs
+tests/algorithm_hamming.rs
+tests/algorithm_jaccard.rs
+tests/algorithm_sorensen.rs
+tests/algorithm_tversky.rs
+tests/algorithm_cosine.rs
+tests/algorithm_monge_elkan.rs
+tests/algorithm_bag.rs
+tests/algorithm_lcsstr.rs
+tests/algorithm_rle_ncd.rs
 ```
 
 **Thinking tasks:** translate set/multiset definitions into explicit examples, cover q-grams and repeated tokens, and verify returned subsequences and tie-breaking against the source tests.
@@ -220,16 +220,16 @@ rust/src/algorithms/simple/postfix.rs
 rust/src/algorithms/simple/length.rs
 rust/src/algorithms/simple/identity.rs
 rust/src/algorithms/simple/matrix.rs
-rust/tests/algorithm_overlap.rs
-rust/tests/algorithm_tanimoto.rs
-rust/tests/algorithm_ratcliff_obershelp.rs
-rust/tests/algorithm_bwtrle_ncd.rs
-rust/tests/algorithm_mra.rs
-rust/tests/algorithm_prefix.rs
-rust/tests/algorithm_postfix.rs
-rust/tests/algorithm_length.rs
-rust/tests/algorithm_identity.rs
-rust/tests/algorithm_matrix.rs
+tests/algorithm_overlap.rs
+tests/algorithm_tanimoto.rs
+tests/algorithm_ratcliff_obershelp.rs
+tests/algorithm_bwtrle_ncd.rs
+tests/algorithm_mra.rs
+tests/algorithm_prefix.rs
+tests/algorithm_postfix.rs
+tests/algorithm_length.rs
+tests/algorithm_identity.rs
+tests/algorithm_matrix.rs
 ```
 
 **Also owns:**
@@ -287,7 +287,7 @@ Each owner can use this template with their coding agent:
 Implement only <ALGORITHM> from textdistance/algorithms/<SOURCE_MODULE>.py.
 
 Target file: rust/src/algorithms/<TARGET_FILE>.rs
-Test file: rust/tests/algorithm_<TARGET_TEST>.rs
+Test file: tests/algorithm_<TARGET_TEST>.rs
 
 Read the original source and its tests. Preserve observable behavior, including
 empty inputs, equal inputs, Unicode/code-point semantics, qval behavior, numeric
@@ -579,7 +579,7 @@ shared registry to begin an assigned packet.
   - Acceptance: numeric algorithms remain source-compatible; sequence-producing algorithms can return their prepared sequence; delegated algorithms can accept a built-in Rust comparator without Python callbacks.
 - [x] **G1-10 — Simha Teja — standardize native test discovery**
   - Dependency: G1-09.
-  - Output: direct `rust/tests/algorithm_<name>.rs` ownership convention documented in the PRD and API contract.
+  - Output: direct package-root `tests/algorithm_<name>.rs` ownership convention documented in the PRD and API contract.
   - Acceptance: an owner can add one native test file without editing `Cargo.toml` or a shared test harness.
 
 ### Lane 2 — Parallel behavior-card preparation
