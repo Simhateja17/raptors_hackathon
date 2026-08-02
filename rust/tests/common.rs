@@ -1,6 +1,7 @@
 use textdistance_port::{
-    all_identical, maximum_length, normalize_distance, normalize_similarity, prepare_sequences,
-    Algorithm, Element, InputSequence, QValue, ScoreMode,
+    all_identical, maximum_length, normalize_distance, normalize_similarity, output_distance,
+    output_similarity, prepare_sequences, Algorithm, AlgorithmOutput, Element, InputSequence,
+    OutputAlgorithm, QValue, ScoreMode, SimilarityComparator,
 };
 
 struct DistanceOne;
@@ -19,6 +20,25 @@ impl Algorithm for SimilarityOne {
     }
 
     fn score_mode(&self) -> ScoreMode {
+        ScoreMode::Similarity
+    }
+}
+
+struct SequenceAnswer;
+
+impl OutputAlgorithm for SequenceAnswer {
+    fn output(
+        &self,
+        _sequences: &[Vec<Element>],
+    ) -> Result<AlgorithmOutput, textdistance_port::AlgorithmError> {
+        Ok(AlgorithmOutput::Sequence(vec![Element::Char('a')]))
+    }
+
+    fn output_maximum(&self, _sequences: &[Vec<Element>]) -> f64 {
+        3.0
+    }
+
+    fn output_mode(&self) -> ScoreMode {
         ScoreMode::Similarity
     }
 }
@@ -89,4 +109,27 @@ fn common_algorithm_methods_convert_raw_scores() {
     assert_eq!(similarity.score_mode(), ScoreMode::Similarity);
     assert_eq!(similarity.similarity(&sequences), 1.0);
     assert_eq!(similarity.distance(&sequences), 0.0);
+}
+
+#[test]
+fn output_contract_preserves_sequences_and_numeric_conversions() {
+    let output = SequenceAnswer.output(&[]).unwrap();
+    assert_eq!(output.sequence().unwrap().len(), 1);
+    assert_eq!(output.scalar_value(), 1.0);
+    assert_eq!(output_similarity(&output, ScoreMode::Similarity, 3.0), 1.0);
+    assert_eq!(output_distance(&output, ScoreMode::Similarity, 3.0), 2.0);
+}
+
+#[test]
+fn algorithms_can_supply_pairwise_similarity_comparators() {
+    let prepared = prepare_sequences(
+        &[
+            InputSequence::Text("a".to_owned()),
+            InputSequence::Text("b".to_owned()),
+        ],
+        QValue::Elements,
+    )
+    .unwrap();
+    let comparator: Box<dyn SimilarityComparator> = Box::new(SimilarityOne);
+    assert_eq!(comparator.compare(&prepared[0], &prepared[1]), 1.0);
 }
