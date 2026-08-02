@@ -612,7 +612,8 @@ the exact source/test paths shown in the ownership section.
 
 - [x] **SIM-01 — Levenshtein** — `edit/levenshtein.rs` + native test.
   - Evidence: `cargo test --test algorithm_levenshtein` (3 passed); `cargo test` (all native, contract, and registry tests passed).
-- [ ] **SIM-02 — Damerau-Levenshtein** — `edit/damerau_levenshtein.rs` + native test.
+- [x] **SIM-02 — Damerau-Levenshtein** — `edit/damerau_levenshtein.rs` + native test.
+  - Evidence: `cargo test --test algorithm_damerau_levenshtein` (3 passed); restricted and unrestricted fixtures covered.
 - [ ] **SIM-03 — Needleman-Wunsch** — `edit/needleman_wunsch.rs` + native test.
 - [ ] **SIM-04 — Smith-Waterman** — `edit/smith_waterman.rs` + native test.
 - [ ] **SIM-05 — Gotoh** — `edit/gotoh.rs` + native test.
