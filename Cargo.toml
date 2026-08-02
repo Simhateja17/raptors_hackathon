@@ -1,3 +1,6 @@
+[workspace]
+members = ["python_adapter"]
+
 [package]
 name = "textdistance-port"
 version = "0.1.0"
