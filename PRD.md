@@ -630,9 +630,10 @@ the exact source/test paths shown in the ownership section.
 - [x] **SIM-09 — LCS sequence** — `sequence/lcsseq.rs` + native test.
   - Dependency: G1-09 because the source call returns a sequence.
   - Evidence: `cargo test --test algorithm_lcsseq` (3 passed); original two-/multi-sequence outputs, tie behavior, empty, Unicode, q-gram, integer, and output-conversion cases covered.
-- [ ] **SIM-10 — FFI contract implementation** — `python_adapter/**`.
+- [x] **SIM-10 — FFI contract implementation** — `python_adapter/**`.
   - Dependency: at least SIM-01, POO-01, and one representative algorithm from Manasa and Suri.
   - Acceptance: the adapter invokes Rust only and exposes the common methods required by the original tests.
+  - Evidence: `cargo test --features python` exercises the PyO3 adapter with text, bytes, integer sequences, sequence output, common methods, and callback rejection; `PYO3_BUILD_EXTENSION_MODULE=1 cargo build --features python-extension` plus a Python import probe passed.
 
 #### Manasa’s packets
 

@@ -87,6 +87,47 @@ Monge-Elkan (including the `jaro_winkler` strategy used by the frozen tests),
 and reports `UnsupportedCustomComparator` for an arbitrary callback rather
 than invoking the original Python runtime.
 
+## PyO3 adapter surface
+
+When the `python` Cargo feature is enabled, `python_adapter/src/lib.rs` exposes
+the native module `textdistance_port`. Its public boundary is:
+
+```python
+from textdistance_port import RustAlgorithm, algorithm
+
+levenshtein = algorithm("levenshtein", qval=1, external=True)
+levenshtein("kitten", "sitting")
+levenshtein.distance("kitten", "sitting")
+levenshtein.similarity("kitten", "sitting")
+levenshtein.normalized_distance("kitten", "sitting")
+levenshtein.normalized_similarity("kitten", "sitting")
+levenshtein.maximum("kitten", "sitting")
+```
+
+`RustAlgorithm.__call__` returns a Rust-computed numeric score for numeric
+algorithms and reconstructs the Rust sequence output for `LCSSeq`, `LCSStr`,
+`Prefix`, and `Postfix`. The adapter accepts only the input forms listed in the
+core boundary, rejects mixed or arbitrary sequences with `TypeError`, and
+rejects `test_func` and `sim_test` rather than invoking Python code during an
+algorithm call. A `Matrix` `mat` option is accepted only as a finite Python
+dictionary with supported tuple keys and numeric values; it is converted once
+at construction time into Rust-owned data.
+
+The adapter contract can be exercised without packaging Python by running:
+
+```text
+cargo test --features python
+```
+
+For a local macOS extension artifact, use PyO3's extension-module mode:
+
+```text
+PYO3_BUILD_EXTENSION_MODULE=1 cargo build --features python-extension
+```
+
+The crate's `build.rs` supplies the platform linker arguments; packaging and
+loading this artifact into the unchanged `textdistance` package remain INT-01.
+
 Native algorithm tests are direct Cargo integration-test roots under the
 package-root `tests/`, named `algorithm_<name>.rs`. Cargo discovers these files
 without an additional shared harness or `Cargo.toml` edit by an algorithm owner.

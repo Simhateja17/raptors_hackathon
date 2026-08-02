@@ -6,6 +6,10 @@
 pub mod algorithms;
 pub mod core;
 
+#[cfg(feature = "python")]
+#[path = "../../python_adapter/src/lib.rs"]
+pub mod python_adapter;
+
 pub use core::{
     all_identical, maximum_length, normalize_distance, normalize_similarity, output_distance,
     output_similarity, prepare_sequences, Algorithm, AlgorithmError, AlgorithmOutput, Element,
