@@ -57,10 +57,46 @@ The trait supplies common conversions. An algorithm only overrides
 `maximum`, `score_mode`, or `quick_answer` when the original Python source
 does so.
 
+## Output, error, and delegation interface
+
+The numeric `Algorithm` trait remains the compatibility path for distance and
+similarity algorithms. Algorithms whose source call returns a value rather
+than a number use the output interface:
+
+```rust
+pub trait OutputAlgorithm {
+    fn output(
+        &self,
+        sequences: &[PreparedSequence],
+    ) -> Result<AlgorithmOutput, AlgorithmError>;
+    fn output_maximum(&self, sequences: &[PreparedSequence]) -> f64;
+    fn output_mode(&self) -> ScoreMode;
+}
+```
+
+`AlgorithmOutput::Score(f64)` is used for numeric algorithms. `LCSSeq` and
+`LCSStr` return `AlgorithmOutput::Sequence(Sequence)` so the adapter can
+reconstruct the source-visible subsequence; `scalar_value()` is used only for
+similarity/distance conversion. `output_distance` and `output_similarity`
+centralize those conversions.
+
+`AlgorithmError` is the error seam for invalid input, invalid configuration,
+and unsupported behavior. Arbitrary Python comparison callbacks are not
+passed into Rust. The adapter selects a named built-in Rust comparator for
+Monge-Elkan (including the `jaro_winkler` strategy used by the frozen tests),
+and reports `UnsupportedCustomComparator` for an arbitrary callback rather
+than invoking the original Python runtime.
+
+Native algorithm tests are direct Cargo integration-test roots under the
+package-root `tests/`, named `algorithm_<name>.rs`. Cargo discovers these files
+without an additional shared harness or `Cargo.toml` edit by an algorithm owner.
+
 ## File and ownership contract
 
 - One public algorithm per file under `rust/src/algorithms/`.
-- One focused native test file per algorithm under `rust/tests/algorithms/`.
+- One focused native test file per algorithm directly under the package-root
+  `tests/`, for example `tests/algorithm_jaccard.rs`. Existing Python tests and
+  `tests/original/` remain unchanged.
 - All assigned module paths are declared in `rust/src/algorithms/mod.rs` from
   the scaffold. `rust/tests/registry.rs` imports every path so missing or
   misnamed packets fail at compile time.
