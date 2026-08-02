@@ -7,6 +7,11 @@ description = "Rust port of the TextDistance algorithms"
 # Native algorithm tests live directly under the package-root tests/ directory.
 # Cargo discovers each tests/algorithm_<name>.rs file automatically.
 
+[dependencies]
+bzip2 = { version = "0.4", features = ["static"] }
+flate2 = "1"
+xz2 = { version = "0.1", features = ["static"] }
+
 [lib]
 name = "textdistance_port"
 path = "rust/src/lib.rs"

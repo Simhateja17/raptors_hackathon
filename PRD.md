@@ -587,9 +587,10 @@ shared registry to begin an assigned packet.
 These are safe while G1-10 is pending because they create understanding and
 fixtures, not shared Rust changes.
 
-- [ ] **PREP-01 — Simha Teja — behavior cards for high-risk algorithms**
+- [x] **PREP-01 — Simha Teja — behavior cards for high-risk algorithms**
   - Output: source/test notes for Levenshtein, Damerau-Levenshtein, Needleman-Wunsch, Smith-Waterman, Gotoh, StrCmp95, MLIPNS, Arithmetic NCD, and LCS sequence.
   - Acceptance: each note lists inputs, options, empty/equal behavior, numeric expectations, and source test references.
+  - Evidence: `docs/behavior-cards/simha.md`.
 - [ ] **PREP-02 — Manasa — compression and phonetic compatibility cards**
   - Output: notes for Jaro, Jaro-Winkler, Editex, Sqrt NCD, Entropy NCD, BZ2 NCD, LZMA NCD, and ZLIB NCD.
   - Acceptance: compressor settings, dependencies, numeric tolerance, and known output risks are explicit.
@@ -609,16 +610,25 @@ the exact source/test paths shown in the ownership section.
 
 #### Simha Teja’s packets
 
-- [ ] **SIM-01 — Levenshtein** — `edit/levenshtein.rs` + native test.
-- [ ] **SIM-02 — Damerau-Levenshtein** — `edit/damerau_levenshtein.rs` + native test.
-- [ ] **SIM-03 — Needleman-Wunsch** — `edit/needleman_wunsch.rs` + native test.
-- [ ] **SIM-04 — Smith-Waterman** — `edit/smith_waterman.rs` + native test.
-- [ ] **SIM-05 — Gotoh** — `edit/gotoh.rs` + native test.
-- [ ] **SIM-06 — StrCmp95** — `edit/strcmp95.rs` + native test.
-- [ ] **SIM-07 — MLIPNS** — `edit/mlipns.rs` + native test.
-- [ ] **SIM-08 — Arithmetic NCD** — `compression/arith_ncd.rs` + native test.
-- [ ] **SIM-09 — LCS sequence** — `sequence/lcsseq.rs` + native test.
+- [x] **SIM-01 — Levenshtein** — `edit/levenshtein.rs` + native test.
+  - Evidence: `cargo test --test algorithm_levenshtein` (3 passed); `cargo test` (all native, contract, and registry tests passed).
+- [x] **SIM-02 — Damerau-Levenshtein** — `edit/damerau_levenshtein.rs` + native test.
+  - Evidence: `cargo test --test algorithm_damerau_levenshtein` (3 passed); restricted and unrestricted fixtures covered.
+- [x] **SIM-03 — Needleman-Wunsch** — `edit/needleman_wunsch.rs` + native test.
+  - Evidence: `cargo test --test algorithm_needleman_wunsch` (3 passed); identity, matrix, gap, empty, Unicode, q-gram, and normalization cases covered.
+- [x] **SIM-04 — Smith-Waterman** — `edit/smith_waterman.rs` + native test.
+  - Evidence: `cargo test --test algorithm_smith_waterman` (3 passed); local zero-reset, matrix, gap, empty/equal, Unicode, q-gram, and normalization cases covered.
+- [x] **SIM-05 — Gotoh** — `edit/gotoh.rs` + native test.
+  - Evidence: `cargo test --test algorithm_gotoh` (3 passed); affine gap, empty/equal, Unicode, q-gram, and inherited normalization cases covered.
+- [x] **SIM-06 — StrCmp95** — `edit/strcmp95.rs` + native test.
+  - Evidence: `cargo test --test algorithm_strcmp95` (3 passed); original floating-point fixtures, preprocessing, empty/equal, long-string option, and Unicode cases covered.
+- [x] **SIM-07 — MLIPNS** — `edit/mlipns.rs` + native test.
+  - Evidence: `cargo test --test algorithm_mlipns` (3 passed); original binary-similarity fixtures, threshold configuration, Unicode, q-grams, integers, and normalization covered.
+- [x] **SIM-08 — Arithmetic NCD** — `compression/arith_ncd.rs` + native test.
+  - Evidence: `cargo test --test algorithm_arith_ncd` (3 passed); original NCD values, stable probability ordering, exact `BANANA` numerator, empty, and q-gram cases covered.
+- [x] **SIM-09 — LCS sequence** — `sequence/lcsseq.rs` + native test.
   - Dependency: G1-09 because the source call returns a sequence.
+  - Evidence: `cargo test --test algorithm_lcsseq` (3 passed); original two-/multi-sequence outputs, tie behavior, empty, Unicode, q-gram, integer, and output-conversion cases covered.
 - [ ] **SIM-10 — FFI contract implementation** — `python_adapter/**`.
   - Dependency: at least SIM-01, POO-01, and one representative algorithm from Manasa and Suri.
   - Acceptance: the adapter invokes Rust only and exposes the common methods required by the original tests.
@@ -636,13 +646,15 @@ the exact source/test paths shown in the ownership section.
   - Dependency: G1-10, PREP-02, and DEP-03.
 - [ ] **MAN-08 — ZLIB NCD** — `compression/zlib_ncd.rs` + native test.
   - Dependency: G1-10, PREP-02, and DEP-03.
-- [ ] **MAN-09 — dependency handoff** — `docs/dependency-notes/manasa.md`.
+- [x] **MAN-09 — dependency handoff** — `docs/dependency-notes/manasa.md`.
   - Acceptance: the note identifies reviewed candidates such as `bzip2`, `xz2` or a pure-Rust LZMA alternative, and `flate2`, plus feature flags, system-library requirements, licenses, settings, and fixed expected-output risks.
+  - Evidence: `docs/dependency-notes/manasa.md` merged from Manasa's branch as `a6d8745`.
 
-- [ ] **DEP-02 — Simha Teja — integrate reviewed compression dependencies**
+- [x] **DEP-02 — Simha Teja — integrate reviewed compression dependencies**
   - Dependency: MAN-09.
   - Output: reviewed `Cargo.toml` and `Cargo.lock` changes only for the required compression support.
   - Acceptance: dependency resolution and a minimal Rust compression smoke check pass; no algorithm owner edits `Cargo.toml`.
+  - Evidence: `bzip2 = 0.4.4` with `static`, `xz2 = 0.1.7` with `static`, and `flate2 = 1.1.9` resolve and compile; BZ2/XZ/ZLIB encoder smoke check passed; `cargo fmt --check && cargo test` passed.
 - [ ] **DEP-03 — Manasa — validate the compression dependency lane**
   - Dependency: DEP-02.
   - Output: compile/smoke evidence for BZ2, LZMA, and ZLIB packets under `proof/` or the focused native tests.
