@@ -626,8 +626,9 @@ the exact source/test paths shown in the ownership section.
   - Evidence: `cargo test --test algorithm_mlipns` (3 passed); original binary-similarity fixtures, threshold configuration, Unicode, q-grams, integers, and normalization covered.
 - [x] **SIM-08 — Arithmetic NCD** — `compression/arith_ncd.rs` + native test.
   - Evidence: `cargo test --test algorithm_arith_ncd` (3 passed); original NCD values, stable probability ordering, exact `BANANA` numerator, empty, and q-gram cases covered.
-- [ ] **SIM-09 — LCS sequence** — `sequence/lcsseq.rs` + native test.
+- [x] **SIM-09 — LCS sequence** — `sequence/lcsseq.rs` + native test.
   - Dependency: G1-09 because the source call returns a sequence.
+  - Evidence: `cargo test --test algorithm_lcsseq` (3 passed); original two-/multi-sequence outputs, tie behavior, empty, Unicode, q-gram, integer, and output-conversion cases covered.
 - [ ] **SIM-10 — FFI contract implementation** — `python_adapter/**`.
   - Dependency: at least SIM-01, POO-01, and one representative algorithm from Manasa and Suri.
   - Acceptance: the adapter invokes Rust only and exposes the common methods required by the original tests.
