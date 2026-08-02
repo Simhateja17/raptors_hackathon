@@ -587,9 +587,10 @@ shared registry to begin an assigned packet.
 These are safe while G1-10 is pending because they create understanding and
 fixtures, not shared Rust changes.
 
-- [ ] **PREP-01 — Simha Teja — behavior cards for high-risk algorithms**
+- [x] **PREP-01 — Simha Teja — behavior cards for high-risk algorithms**
   - Output: source/test notes for Levenshtein, Damerau-Levenshtein, Needleman-Wunsch, Smith-Waterman, Gotoh, StrCmp95, MLIPNS, Arithmetic NCD, and LCS sequence.
   - Acceptance: each note lists inputs, options, empty/equal behavior, numeric expectations, and source test references.
+  - Evidence: `docs/behavior-cards/simha.md`.
 - [ ] **PREP-02 — Manasa — compression and phonetic compatibility cards**
   - Output: notes for Jaro, Jaro-Winkler, Editex, Sqrt NCD, Entropy NCD, BZ2 NCD, LZMA NCD, and ZLIB NCD.
   - Acceptance: compressor settings, dependencies, numeric tolerance, and known output risks are explicit.
@@ -609,7 +610,8 @@ the exact source/test paths shown in the ownership section.
 
 #### Simha Teja’s packets
 
-- [ ] **SIM-01 — Levenshtein** — `edit/levenshtein.rs` + native test.
+- [x] **SIM-01 — Levenshtein** — `edit/levenshtein.rs` + native test.
+  - Evidence: `cargo test --test algorithm_levenshtein` (3 passed); `cargo test` (all native, contract, and registry tests passed).
 - [ ] **SIM-02 — Damerau-Levenshtein** — `edit/damerau_levenshtein.rs` + native test.
 - [ ] **SIM-03 — Needleman-Wunsch** — `edit/needleman_wunsch.rs` + native test.
 - [ ] **SIM-04 — Smith-Waterman** — `edit/smith_waterman.rs` + native test.
