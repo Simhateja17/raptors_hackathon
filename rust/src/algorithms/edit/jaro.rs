@@ -6,14 +6,23 @@
 
 use crate::core::{Algorithm, Element, PreparedSequence, ScoreMode};
 
+/// Result of the shared Jaro matching core, exposing the pieces
+/// `jaro_winkler`'s long-tolerance adjustment needs beyond the plain weight.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct JaroCore {
+    /// Jaro similarity in `[0, 1]`, before any Winkler prefix boost.
+    pub weight: f64,
+    /// Count of matched (not necessarily in-order) characters.
+    pub common_chars: usize,
+}
+
 /// Shared Jaro matching/transposition core, reused by `jaro_winkler`.
 ///
 /// Mirrors `JaroWinkler.__call__` in the source through the point where
 /// `winklerize` starts to matter. Returns `None` when either sequence is
 /// empty or no characters matched (both score `0.0` in the source);
-/// `Some(weight)` otherwise, where `weight` is the Jaro similarity in
-/// `[0, 1]` before any Winkler prefix boost is applied.
-pub(crate) fn core_similarity(s1: &[Element], s2: &[Element]) -> Option<f64> {
+/// `Some(JaroCore { .. })` otherwise.
+pub(crate) fn core_similarity(s1: &[Element], s2: &[Element]) -> Option<JaroCore> {
     let s1_len = s1.len();
     let s2_len = s2.len();
     if s1_len == 0 || s2_len == 0 {
@@ -75,7 +84,10 @@ pub(crate) fn core_similarity(s1: &[Element], s2: &[Element]) -> Option<f64> {
     weight += (common - trans_count as f64) / common;
     weight /= 3.0;
 
-    Some(weight)
+    Some(JaroCore {
+        weight,
+        common_chars,
+    })
 }
 
 /// Jaro similarity. See `docs/behavior-cards/manasa/jaro.md`.
@@ -101,7 +113,9 @@ impl Default for Jaro {
 impl Algorithm for Jaro {
     fn raw_score(&self, sequences: &[PreparedSequence]) -> f64 {
         debug_assert_eq!(sequences.len(), 2, "Jaro compares exactly two sequences");
-        core_similarity(&sequences[0], &sequences[1]).unwrap_or(0.0)
+        core_similarity(&sequences[0], &sequences[1])
+            .map(|core| core.weight)
+            .unwrap_or(0.0)
     }
 
     // Source: `JaroWinkler.maximum` returns the constant `1`, not the
