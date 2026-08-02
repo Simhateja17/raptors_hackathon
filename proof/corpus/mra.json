@@ -1,0 +1,245 @@
+{
+  "algorithm": "mra",
+  "cases": [
+    {
+      "id": "empty-0",
+      "category": "empty",
+      "inputs": [
+        "",
+        ""
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 0.0,
+        "normalized_distance": 0,
+        "normalized_similarity": 1,
+        "maximum": 0.0
+      },
+      "note": "captured from the original Python textdistance.mra implementation"
+    },
+    {
+      "id": "empty-1",
+      "category": "empty",
+      "inputs": [
+        "a",
+        ""
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      },
+      "note": "captured from the original Python textdistance.mra implementation"
+    },
+    {
+      "id": "empty-2",
+      "category": "empty",
+      "inputs": [
+        "",
+        "a"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      },
+      "note": "captured from the original Python textdistance.mra implementation"
+    },
+    {
+      "id": "equal-3",
+      "category": "equal",
+      "inputs": [
+        "a",
+        "a"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      },
+      "note": "captured from the original Python textdistance.mra implementation"
+    },
+    {
+      "id": "equal-4",
+      "category": "equal",
+      "inputs": [
+        "abc",
+        "abc"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 3.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 3.0
+      },
+      "note": "captured from the original Python textdistance.mra implementation"
+    },
+    {
+      "id": "different-5",
+      "category": "different",
+      "inputs": [
+        "Tomato",
+        "Tamato"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 3.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 3.0
+      },
+      "note": "captured from the original Python textdistance.mra implementation"
+    },
+    {
+      "id": "different-6",
+      "category": "different",
+      "inputs": [
+        "MARTHA",
+        "MARHTA"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 2.0,
+        "similarity": 2.0,
+        "normalized_distance": 0.5,
+        "normalized_similarity": 0.5,
+        "maximum": 4.0
+      },
+      "note": "captured from the original Python textdistance.mra implementation"
+    },
+    {
+      "id": "different-7",
+      "category": "different",
+      "inputs": [
+        "spam",
+        "qwer"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 3.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 3.0
+      },
+      "note": "captured from the original Python textdistance.mra implementation"
+    },
+    {
+      "id": "different-8",
+      "category": "different",
+      "inputs": [
+        "CATHERINE",
+        "KATHRYN"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 3.0,
+        "similarity": 3.0,
+        "normalized_distance": 0.5,
+        "normalized_similarity": 0.5,
+        "maximum": 6.0
+      },
+      "note": "captured from the original Python textdistance.mra implementation"
+    },
+    {
+      "id": "unicode-9",
+      "category": "unicode",
+      "inputs": [
+        "straße",
+        "STRASSE"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 4.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 4.0
+      },
+      "note": "captured from the original Python textdistance.mra implementation"
+    },
+    {
+      "id": "equal-10",
+      "category": "equal",
+      "inputs": [
+        "hello world",
+        "hello world"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 6.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 6.0
+      },
+      "note": "captured from the original Python textdistance.mra implementation"
+    },
+    {
+      "id": "different-11",
+      "category": "different",
+      "inputs": [
+        "kitten",
+        "sitting"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 2.0,
+        "similarity": 2.0,
+        "normalized_distance": 0.5,
+        "normalized_similarity": 0.5,
+        "maximum": 4.0
+      },
+      "note": "captured from the original Python textdistance.mra implementation"
+    },
+    {
+      "id": "multi-sequence-3-equal",
+      "category": "multi_sequence",
+      "inputs": [
+        "abc",
+        "abc",
+        "abc"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 3.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 3.0
+      }
+    },
+    {
+      "id": "edge-qval-ignored",
+      "category": "edge_case",
+      "inputs": [
+        "test",
+        "text"
+      ],
+      "options": {
+        "qval": 2
+      },
+      "expected": {
+        "distance": 1.0,
+        "similarity": 2.0,
+        "normalized_distance": 0.3333333333333333,
+        "normalized_similarity": 0.6666666666666667,
+        "maximum": 3.0
+      },
+      "note": "MRA never calls _get_sequences; qval has no effect on the result"
+    }
+  ]
+}

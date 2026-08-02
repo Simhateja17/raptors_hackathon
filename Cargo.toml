@@ -31,3 +31,8 @@ path = "rust/tests/common.rs"
 [[test]]
 name = "registry"
 path = "rust/tests/registry.rs"
+
+[[bench]]
+name = "suri_bench"
+path = "rust/benches/suri_bench.rs"
+harness = false

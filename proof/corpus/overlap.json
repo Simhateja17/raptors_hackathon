@@ -1,0 +1,208 @@
+{
+  "algorithm": "overlap",
+  "cases": [
+    {
+      "id": "empty-empty",
+      "category": "empty",
+      "inputs": [
+        "",
+        ""
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "empty-nonempty",
+      "category": "empty",
+      "inputs": [
+        "",
+        "abc"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "equal",
+      "category": "equal",
+      "inputs": [
+        "test",
+        "test"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "different-0",
+      "category": "different",
+      "inputs": [
+        "test",
+        "text"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.25,
+        "similarity": 0.75,
+        "normalized_distance": 0.25,
+        "normalized_similarity": 0.75,
+        "maximum": 1.0
+      },
+      "note": "from tests/original/test_token/test_overlap.py::test_distance"
+    },
+    {
+      "id": "different-1",
+      "category": "different",
+      "inputs": [
+        "testme",
+        "textthis"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.33333333333333337,
+        "similarity": 0.6666666666666666,
+        "normalized_distance": 0.33333333333333337,
+        "normalized_similarity": 0.6666666666666666,
+        "maximum": 1.0
+      },
+      "note": "from tests/original/test_token/test_overlap.py::test_distance"
+    },
+    {
+      "id": "different-2",
+      "category": "different",
+      "inputs": [
+        "nelson",
+        "neilsen"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.16666666666666663,
+        "similarity": 0.8333333333333334,
+        "normalized_distance": 0.16666666666666663,
+        "normalized_similarity": 0.8333333333333334,
+        "maximum": 1.0
+      },
+      "note": "from tests/original/test_token/test_overlap.py::test_distance"
+    },
+    {
+      "id": "unicode-equal",
+      "category": "unicode",
+      "inputs": [
+        "café",
+        "café"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "multi-sequence-3",
+      "category": "multi_sequence",
+      "inputs": [
+        "abc",
+        "abd",
+        "abe"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.33333333333333337,
+        "similarity": 0.6666666666666666,
+        "normalized_distance": 0.33333333333333337,
+        "normalized_similarity": 0.6666666666666666,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "qvalue-ngram2",
+      "category": "qvalue",
+      "inputs": [
+        "test",
+        "text"
+      ],
+      "options": {
+        "qval": 2
+      },
+      "expected": {
+        "distance": 0.6666666666666667,
+        "similarity": 0.3333333333333333,
+        "normalized_distance": 0.6666666666666667,
+        "normalized_similarity": 0.33333333333333326,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "qvalue-words",
+      "category": "qvalue",
+      "inputs": [
+        "one two",
+        "one three"
+      ],
+      "options": {
+        "qval": null
+      },
+      "expected": {
+        "distance": 0.5,
+        "similarity": 0.5,
+        "normalized_distance": 0.5,
+        "normalized_similarity": 0.5,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "options-as-set",
+      "category": "options",
+      "inputs": [
+        "aaaa",
+        "aa"
+      ],
+      "options": {
+        "as_set": true
+      },
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "edge-subset-asymmetry",
+      "category": "edge_case",
+      "inputs": [
+        "ab",
+        "abc"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      },
+      "note": "overlap coefficient is asymmetric from Jaccard for subsets"
+    }
+  ]
+}
