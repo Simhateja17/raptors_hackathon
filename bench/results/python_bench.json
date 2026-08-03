@@ -7,92 +7,92 @@
     {
       "algorithm": "overlap",
       "total_calls": 12000,
-      "total_seconds": 0.09645633299987821,
-      "seconds_per_call": 8.038027749989852e-06,
-      "calls_per_second": 124408.62747721448,
+      "total_seconds": 0.07794991599985224,
+      "seconds_per_call": 6.49582633332102e-06,
+      "calls_per_second": 153945.00232717054,
       "traced_peak_bytes_over_timed_loop": 3272,
-      "long_case_seconds": 6.137499985925388e-05
+      "long_case_seconds": 5.5333001000690274e-05
     },
     {
       "algorithm": "tanimoto",
       "total_calls": 12000,
-      "total_seconds": 0.10563187500019922,
-      "seconds_per_call": 8.802656250016602e-06,
-      "calls_per_second": 113602.07323762233,
+      "total_seconds": 0.09768054199957987,
+      "seconds_per_call": 8.140045166631657e-06,
+      "calls_per_second": 122849.44119220399,
       "traced_peak_bytes_over_timed_loop": 1280,
-      "long_case_seconds": 6.370800019794842e-05
+      "long_case_seconds": 6.304199996520765e-05
     },
     {
       "algorithm": "ratcliff_obershelp",
       "total_calls": 12000,
-      "total_seconds": 0.12685099999998783,
-      "seconds_per_call": 1.0570916666665653e-05,
-      "calls_per_second": 94599.17541053008,
+      "total_seconds": 0.11663679199955368,
+      "seconds_per_call": 9.719732666629473e-06,
+      "calls_per_second": 102883.48808535405,
       "traced_peak_bytes_over_timed_loop": 1633,
-      "long_case_seconds": 0.0016045419997681165
+      "long_case_seconds": 0.0014911250000295695
     },
     {
       "algorithm": "bwtrle_ncd",
       "total_calls": 12000,
-      "total_seconds": 0.7067592919997878,
-      "seconds_per_call": 5.889660766664899e-05,
-      "calls_per_second": 16978.906589322356,
+      "total_seconds": 0.6386327079999319,
+      "seconds_per_call": 5.321939233332766e-05,
+      "calls_per_second": 18790.143144377253,
       "traced_peak_bytes_over_timed_loop": 3583,
-      "long_case_seconds": 0.008011792000161222
+      "long_case_seconds": 0.008192291001250851
     },
     {
       "algorithm": "mra",
       "total_calls": 12000,
-      "total_seconds": 0.29172058299991477,
-      "seconds_per_call": 2.431004858332623e-05,
-      "calls_per_second": 41135.253044532365,
+      "total_seconds": 0.2763722920008149,
+      "seconds_per_call": 2.3031024333401244e-05,
+      "calls_per_second": 43419.69273810059,
       "traced_peak_bytes_over_timed_loop": 1128,
-      "long_case_seconds": 0.00023904099998617312
+      "long_case_seconds": 0.00025749999986146577
     },
     {
       "algorithm": "prefix",
       "total_calls": 12000,
-      "total_seconds": 0.02520795899999939,
-      "seconds_per_call": 2.100663249999949e-06,
-      "calls_per_second": 476040.1268504241,
+      "total_seconds": 0.026472208999621216,
+      "seconds_per_call": 2.2060174166351013e-06,
+      "calls_per_second": 453305.57794295537,
       "traced_peak_bytes_over_timed_loop": 744,
-      "long_case_seconds": 1.6670001059537753e-06
+      "long_case_seconds": 1.5000005078036338e-06
     },
     {
       "algorithm": "postfix",
       "total_calls": 12000,
-      "total_seconds": 0.04036808299997574,
-      "seconds_per_call": 3.364006916664645e-06,
-      "calls_per_second": 297264.5493224737,
+      "total_seconds": 0.04166895900016243,
+      "seconds_per_call": 3.472413250013536e-06,
+      "calls_per_second": 287984.1562625364,
       "traced_peak_bytes_over_timed_loop": 1128,
-      "long_case_seconds": 1.5250000160449417e-05
+      "long_case_seconds": 1.341600000159815e-05
     },
     {
       "algorithm": "length",
       "total_calls": 12000,
-      "total_seconds": 0.007544125000094937,
-      "seconds_per_call": 6.286770833412447e-07,
-      "calls_per_second": 1590641.7245007195,
+      "total_seconds": 0.006335250000120141,
+      "seconds_per_call": 5.279375000100118e-07,
+      "calls_per_second": 1894163.6083457533,
       "traced_peak_bytes_over_timed_loop": 176,
-      "long_case_seconds": 9.57999873207882e-07
+      "long_case_seconds": 7.500002539018169e-07
     },
     {
       "algorithm": "identity",
       "total_calls": 12000,
-      "total_seconds": 0.0030506250000144064,
-      "seconds_per_call": 2.5421875000120054e-07,
-      "calls_per_second": 3933620.1597847426,
+      "total_seconds": 0.0030092920005699852,
+      "seconds_per_call": 2.507743333808321e-07,
+      "calls_per_second": 3987648.921316741,
       "traced_peak_bytes_over_timed_loop": 216,
-      "long_case_seconds": 1.707999672362348e-06
+      "long_case_seconds": 1.3329990906640887e-06
     },
     {
       "algorithm": "matrix",
       "total_calls": 12000,
-      "total_seconds": 0.003365958999893337,
-      "seconds_per_call": 2.8049658332444474e-07,
-      "calls_per_second": 3565105.813938989,
+      "total_seconds": 0.003001208999194205,
+      "seconds_per_call": 2.501007499328504e-07,
+      "calls_per_second": 3998388.65044783,
       "traced_peak_bytes_over_timed_loop": 216,
-      "long_case_seconds": 1.4590000319003593e-06
+      "long_case_seconds": 9.999985195463523e-07
     }
   ]
 }

@@ -5,79 +5,79 @@
     {
       "algorithm": "overlap",
       "total_calls": 12000,
-      "total_seconds": 0.010325583,
-      "seconds_per_call": 0.000000860,
-      "calls_per_second": 1162161.98,
+      "total_seconds": 0.007360333,
+      "seconds_per_call": 0.000000613,
+      "calls_per_second": 1630361.02,
       "bytes_allocated_per_call": 1501.33,
       "allocations_per_call": 5.000,
-      "long_case_seconds": 0.000081917
+      "long_case_seconds": 0.000090458
     },
     {
       "algorithm": "tanimoto",
       "total_calls": 12000,
-      "total_seconds": 0.005604708,
-      "seconds_per_call": 0.000000467,
-      "calls_per_second": 2141057.13,
+      "total_seconds": 0.008569667,
+      "seconds_per_call": 0.000000714,
+      "calls_per_second": 1400287.78,
       "bytes_allocated_per_call": 1957.33,
       "allocations_per_call": 6.000,
-      "long_case_seconds": 0.000040292
+      "long_case_seconds": 0.000105958
     },
     {
       "algorithm": "ratcliff_obershelp",
       "total_calls": 12000,
-      "total_seconds": 0.005709125,
-      "seconds_per_call": 0.000000476,
-      "calls_per_second": 2101898.28,
+      "total_seconds": 0.008786792,
+      "seconds_per_call": 0.000000732,
+      "calls_per_second": 1365686.13,
       "bytes_allocated_per_call": 1010.67,
       "allocations_per_call": 13.667,
-      "long_case_seconds": 0.000099416
+      "long_case_seconds": 0.000106875
     },
     {
       "algorithm": "bwtrle_ncd",
       "total_calls": 12000,
-      "total_seconds": 0.088750666,
-      "seconds_per_call": 0.000007396,
-      "calls_per_second": 135210.25,
+      "total_seconds": 0.081259792,
+      "seconds_per_call": 0.000006772,
+      "calls_per_second": 147674.51,
       "bytes_allocated_per_call": 60646.67,
       "allocations_per_call": 124.667,
-      "long_case_seconds": 0.325393167
+      "long_case_seconds": 0.310088375
     },
     {
       "algorithm": "mra",
       "total_calls": 12000,
-      "total_seconds": 0.006028625,
-      "seconds_per_call": 0.000000502,
-      "calls_per_second": 1990503.64,
+      "total_seconds": 0.005780583,
+      "seconds_per_call": 0.000000482,
+      "calls_per_second": 2075915.18,
       "bytes_allocated_per_call": 512.00,
       "allocations_per_call": 23.667,
-      "long_case_seconds": 0.000021750
+      "long_case_seconds": 0.000023542
     },
     {
       "algorithm": "prefix",
       "total_calls": 12000,
-      "total_seconds": 0.000283125,
+      "total_seconds": 0.000291042,
       "seconds_per_call": 0.000000024,
-      "calls_per_second": 42384105.96,
-      "bytes_allocated_per_call": 245.33,
-      "allocations_per_call": 1.000,
-      "long_case_seconds": 0.000000166
-    },
-    {
-      "algorithm": "postfix",
-      "total_calls": 12000,
-      "total_seconds": 0.000267000,
-      "seconds_per_call": 0.000000022,
-      "calls_per_second": 44943820.22,
+      "calls_per_second": 41231162.51,
       "bytes_allocated_per_call": 245.33,
       "allocations_per_call": 1.000,
       "long_case_seconds": 0.000000167
     },
     {
+      "algorithm": "postfix",
+      "total_calls": 12000,
+      "total_seconds": 0.000289792,
+      "seconds_per_call": 0.000000024,
+      "calls_per_second": 41409010.60,
+      "bytes_allocated_per_call": 245.33,
+      "allocations_per_call": 1.000,
+      "long_case_seconds": 0.000000333
+    },
+    {
       "algorithm": "length",
       "total_calls": 12000,
-      "total_seconds": 0.000014875,
-      "seconds_per_call": 0.000000001,
-      "calls_per_second": 806722689.08,
+      "total_seconds": 0.000020417,
+      "seconds_per_call": 0.000000002,
+      "calls_per_second": 587745506.20,
       "bytes_allocated_per_call": 0.00,
       "allocations_per_call": 0.000,
       "long_case_seconds": 0.000000000
@@ -85,9 +85,9 @@
     {
       "algorithm": "identity",
       "total_calls": 12000,
-      "total_seconds": 0.000041042,
+      "total_seconds": 0.000042000,
       "seconds_per_call": 0.000000003,
-      "calls_per_second": 292383412.11,
+      "calls_per_second": 285714285.71,
       "bytes_allocated_per_call": 0.00,
       "allocations_per_call": 0.000,
       "long_case_seconds": 0.000000000
@@ -95,12 +95,12 @@
     {
       "algorithm": "matrix",
       "total_calls": 12000,
-      "total_seconds": 0.000043250,
+      "total_seconds": 0.000045708,
       "seconds_per_call": 0.000000004,
-      "calls_per_second": 277456647.40,
+      "calls_per_second": 262536098.71,
       "bytes_allocated_per_call": 0.00,
       "allocations_per_call": 0.000,
-      "long_case_seconds": 0.000000000
+      "long_case_seconds": 0.000000042
     }
   ]
 }

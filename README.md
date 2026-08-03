@@ -4,42 +4,106 @@
 
 [![Build Status](https://travis-ci.org/life4/textdistance.svg?branch=master)](https://travis-ci.org/life4/textdistance) [![PyPI version](https://img.shields.io/pypi/v/textdistance.svg)](https://pypi.python.org/pypi/textdistance) [![Status](https://img.shields.io/pypi/status/textdistance.svg)](https://pypi.python.org/pypi/textdistance) [![License](https://img.shields.io/pypi/l/textdistance.svg)](LICENSE)
 
-**TextDistance** -- python library for comparing distance between two or more sequences by many algorithms.
+**TextDistance** — a Python library for comparing two or more sequences with
+many distance and similarity algorithms.
 
-## Rust-port verification
+## Hackathon submission: TextDistance Rust Port
 
-This checkout also contains the Track D Python-to-Rust port. The exported
-algorithm classes keep the original Python API, while supported calls execute
-in the compiled Rust core through the `textdistance_port` PyO3 adapter. Build
-the extension before importing the package:
+This submission keeps the familiar TextDistance Python API while moving the
+supported algorithm computation into a standalone Rust core. Python calls a
+thin PyO3 adapter, the adapter converts inputs and options, Rust performs the
+calculation, and the result is converted back to the original Python-shaped
+output.
 
-```bash
-make build
-make test       # native tests plus the unchanged non-external original suite
-make verify     # manifest, native tests, corpus, fuzz smoke, original suite
-make benchmark  # Rust/native and frozen-Python benchmark results
-make demo       # short deterministic walkthrough
+The integrated submission build is on the [`teja` branch](https://github.com/Simhateja17/raptors_hackathon/tree/teja).
+
+### What we built
+
+- A Rust implementation covering edit, token, sequence, compression, phonetic,
+  alignment, and simple algorithm families.
+- A thin Python/Rust boundary in
+  [`python_adapter/src/lib.rs`](python_adapter/src/lib.rs), wired into the
+  Rust crate through [`rust/src/lib.rs`](rust/src/lib.rs).
+- Python compatibility wrappers that preserve the existing public API.
+- Explicit input conversion and error handling for strings, bytes, integer and
+  boolean sequences, q-grams, sequence outputs, and matrix options.
+- No silent Python fallback: if the compiled extension is unavailable, the
+  package reports a setup error instead of running the old implementation.
+
+### Architecture at a glance
+
+```mermaid
+flowchart LR
+    A["Existing Python API<br/>textdistance.levenshtein(...)"] --> B["Thin adapter<br/>textdistance/_rust_adapter.py<br/>validate + convert"]
+    B --> C["PyO3 boundary<br/>textdistance_port"]
+    C --> D["Rust core<br/>rust/src/algorithms + core"]
+    D --> C
+    D --> E["make verify<br/>hashes + tests + corpus + fuzz"]
+    D --> F["make benchmark<br/>Rust vs frozen Python"]
 ```
 
-The Makefile prefers an available project interpreter under `.venvs/` and
-pins PyO3 to that same interpreter via `PYO3_PYTHON=$(PYTHON)`. You can choose
-another one explicitly, for example `make PYTHON=/path/to/python verify`. If
-Python was upgraded, remove stale build artifacts once with `cargo clean` and
-rerun `make build`.
+For a presentation-ready version of this diagram, open
+[`docs/textdistance-demo.excalidraw`](docs/textdistance-demo.excalidraw).
 
-The original test snapshot is under `tests/original/` and is hash-checked by
-`make verify`; no file in that snapshot is modified. See
-[`docs/DECISIONS.md`](docs/DECISIONS.md) for the FFI and compatibility choices,
-[`docs/DEMO.md`](docs/DEMO.md) for the five-minute path, and
-[`bench/report.md`](bench/report.md) for current results. The optional
-third-party comparison command is `make test-external`; its current RapidFuzz
-environment has three large-integer sequence mismatches documented in the
-decisions file.
+### Five-minute judge walkthrough
+
+Run these commands from the repository root:
+
+```bash
+make demo
+make verify
+make benchmark
+```
+
+The demo shows Levenshtein, Jaro-Winkler, q-value sequence reconstruction, and
+floating-point Matrix options. The verification command checks the unchanged
+original-test hashes, native Rust tests, the 114-case differential corpus, the
+seeded fuzz smoke test, and the 400-case non-external original suite. The
+benchmark command records reproducible Rust/native and frozen-Python results
+in [`bench/report.md`](bench/report.md). The full narration path is in
+[`docs/DEMO.md`](docs/DEMO.md).
+
+### Evidence judges can inspect
+
+| Claim | Evidence |
+| --- | --- |
+| Rust owns the supported computation | [`rust/src/`](rust/src/), [`python_adapter/src/lib.rs`](python_adapter/src/lib.rs), and [`textdistance/_rust_adapter.py`](textdistance/_rust_adapter.py) |
+| Original tests were preserved | [`tests/original/`](tests/original/) and [`proof/original-tests.sha256`](proof/original-tests.sha256) |
+| Differential behavior is covered | [`proof/verify_corpus.py`](proof/verify_corpus.py) and [`proof/corpus.md`](proof/corpus.md) — 114/114 cases pass |
+| Randomized safety was checked | [`proof/fuzz-smoke.md`](proof/fuzz-smoke.md) — zero recorded panics |
+| Performance is reproducible | [`bench/report.md`](bench/report.md) and [`bench/results/`](bench/results/) |
+| Compatibility decisions are explicit | [`docs/DECISIONS.md`](docs/DECISIONS.md) |
+
+### Team contribution
+
+Poojitha, Manasa, and Suri implemented algorithm packets and their native
+tests. Simha Teja integrated the teammate branches, completed the Lane 4 FFI
+and verification work, preserved the original test snapshot, ran the proof
+gates, and published the integrated `teja` branch.
+
+### Runtime and verification note
+
+The original upstream documentation remains below for API reference. For this
+hackathon path, use the Rust-backed commands above. The required `make verify`
+path passes. The optional `make test-external` comparison currently exposes
+three documented RapidFuzz large-integer sequence coercion differences; the
+Rust port follows the frozen implementation rather than imitating that
+provider-specific behavior.
+
+The Makefile prefers an available project interpreter under `.venvs/` and pins
+PyO3 to that same interpreter through `PYO3_PYTHON=$(PYTHON)`. You can choose
+another one explicitly, for example `make PYTHON=/path/to/python verify`. If
+Python was upgraded, run `cargo clean` once and then rerun `make build`.
+
+## Original TextDistance API reference
+
+The sections below are retained from the upstream library documentation. They
+describe the public algorithms and usage surface that this Rust port preserves.
 
 Features:
 
 - 30+ algorithms
-- Pure python implementation
+- Familiar Python API
 - Simple usage
 - More than two sequences comparing
 - Some algorithms have more than one implementation in one class.
