@@ -1,0 +1,193 @@
+{
+  "algorithm": "identity",
+  "cases": [
+    {
+      "id": "empty-0",
+      "category": "empty",
+      "inputs": [
+        "",
+        ""
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "empty-1",
+      "category": "empty",
+      "inputs": [
+        "a",
+        ""
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "equal-2",
+      "category": "equal",
+      "inputs": [
+        "a",
+        "a"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "different-3",
+      "category": "different",
+      "inputs": [
+        "abc",
+        "abd"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "different-4",
+      "category": "different",
+      "inputs": [
+        "spam",
+        "qwer"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "unicode",
+      "category": "unicode",
+      "inputs": [
+        "café",
+        "café"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "multi-sequence-3-same",
+      "category": "multi_sequence",
+      "inputs": [
+        "a",
+        "a",
+        "a"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "multi-sequence-3-diff",
+      "category": "multi_sequence",
+      "inputs": [
+        "a",
+        "a",
+        "b"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "integers",
+      "category": "integers",
+      "inputs": [
+        [
+          1000,
+          2,
+          3
+        ],
+        [
+          1000,
+          2,
+          3
+        ]
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "bytes",
+      "category": "bytes",
+      "inputs": [
+        {
+          "__bytes_hex__": "616263"
+        },
+        {
+          "__bytes_hex__": "616263"
+        }
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "edge-zero-sequences",
+      "category": "edge_case",
+      "inputs": [],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      },
+      "note": "zero sequences are not identical: Python's bare _ident() is False"
+    }
+  ]
+}

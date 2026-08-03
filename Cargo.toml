@@ -1,3 +1,6 @@
+[workspace]
+members = ["python_adapter"]
+
 [package]
 name = "textdistance-port"
 version = "0.1.0"
@@ -28,3 +31,8 @@ path = "rust/tests/common.rs"
 [[test]]
 name = "registry"
 path = "rust/tests/registry.rs"
+
+[[bench]]
+name = "suri_bench"
+path = "rust/benches/suri_bench.rs"
+harness = false
