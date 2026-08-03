@@ -721,10 +721,11 @@ These tasks are intentionally sequential after the parallel packets.
   - Dependency: INT-04.
   - Output: seed, duration, and result under `proof/`.
   - Acceptance: zero crashes and zero unexplained mismatches.
-- [ ] **INT-06 — Suri — capture benchmarks**
+- [x] **INT-06 — Suri — capture benchmarks**
   - Dependency: INT-02.
   - Output: reproducible benchmark report under `bench/`.
   - Acceptance: baseline and Rust commands, inputs, machine details, and results are recorded.
+  - Evidence: `bench/report.md`, `bench/results/rust_bench.json`, `bench/results/python_bench.json`.
 - [ ] **INT-07 — Simha Teja — final core/FFI review**
   - Dependency: INT-03.
   - Output: review commit or signed-off review note.

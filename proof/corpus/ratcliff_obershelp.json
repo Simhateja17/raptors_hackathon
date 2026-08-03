@@ -1,0 +1,248 @@
+{
+  "algorithm": "ratcliff_obershelp",
+  "cases": [
+    {
+      "id": "empty-0",
+      "category": "empty",
+      "inputs": [
+        "",
+        ""
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "empty-1",
+      "category": "empty",
+      "inputs": [
+        "a",
+        ""
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "empty-2",
+      "category": "empty",
+      "inputs": [
+        "",
+        "a"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "equal-3",
+      "category": "equal",
+      "inputs": [
+        "a",
+        "a"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "equal-4",
+      "category": "equal",
+      "inputs": [
+        "abcd",
+        "abcd"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "different-5",
+      "category": "different",
+      "inputs": [
+        "ab",
+        "cd"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "different-6",
+      "category": "different",
+      "inputs": [
+        "spam",
+        "qwer"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "different-7",
+      "category": "different",
+      "inputs": [
+        "test",
+        "text"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.25,
+        "similarity": 0.75,
+        "normalized_distance": 0.25,
+        "normalized_similarity": 0.75,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "different-8",
+      "category": "different",
+      "inputs": [
+        "gestalt pattern matching",
+        "gestalt practice"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.4,
+        "similarity": 0.6,
+        "normalized_distance": 0.4,
+        "normalized_similarity": 0.6,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "different-9",
+      "category": "different",
+      "inputs": [
+        "DIXON",
+        "DICKSONX"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.3846153846153846,
+        "similarity": 0.6153846153846154,
+        "normalized_distance": 0.3846153846153846,
+        "normalized_similarity": 0.6153846153846154,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "different-10",
+      "category": "different",
+      "inputs": [
+        "thisisatest",
+        "testing123testing"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.7142857142857143,
+        "similarity": 0.2857142857142857,
+        "normalized_distance": 0.7142857142857143,
+        "normalized_similarity": 0.2857142857142857,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "unicode",
+      "category": "unicode",
+      "inputs": [
+        "café",
+        "cafe"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.25,
+        "similarity": 0.75,
+        "normalized_distance": 0.25,
+        "normalized_similarity": 0.75,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "multi-sequence-3-equal",
+      "category": "multi_sequence",
+      "inputs": [
+        "abc",
+        "abc",
+        "abc"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "multi-sequence-3-diff",
+      "category": "multi_sequence",
+      "inputs": [
+        "night",
+        "nacht",
+        "nought"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.4375,
+        "similarity": 0.5625,
+        "normalized_distance": 0.4375,
+        "normalized_similarity": 0.5625,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "edge-difflib-tie-break",
+      "category": "edge_case",
+      "inputs": [
+        "AAAAxxxxxxxxxxxxxxBBBB",
+        "BBBBAAAA"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.7333333333333334,
+        "similarity": 0.26666666666666666,
+        "normalized_distance": 0.7333333333333334,
+        "normalized_similarity": 0.2666666666666666,
+        "maximum": 1.0
+      },
+      "note": "two equal-length common substrings; difflib picks earliest in left"
+    }
+  ]
+}

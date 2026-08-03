@@ -1,22 +1,9 @@
 from __future__ import annotations
 
-# built-in
-from difflib import SequenceMatcher as _SequenceMatcher
-from typing import Any
-
 # app
-from ..utils import find_ngrams
+from .. import _rust_adapter as _rust
 from .base import BaseSimilarity as _BaseSimilarity
 from .types import TestFunc
-
-
-try:
-    # external
-    import numpy
-except ImportError:
-    # built-in
-    from array import array
-    numpy = None  # type: ignore[assignment]
 
 
 __all__ = [
@@ -41,105 +28,38 @@ class LCSSeq(_BaseSimilarity):
         self.test_func = test_func or self._ident
         self.external = external
 
-    def _dynamic(self, seq1: str, seq2: str) -> str:
-        """
-        https://github.com/chrislit/abydos/blob/master/abydos/distance/_lcsseq.py
-        http://www.dis.uniroma1.it/~bonifaci/algo/LCSSEQ.py
-        http://rosettacode.org/wiki/Longest_common_subsequence#Dynamic_Programming_8
-        """
-        lengths: Any
-        if numpy:
-            lengths = numpy.zeros((len(seq1) + 1, len(seq2) + 1), dtype=int)
-        else:
-            lengths = [array('L', [0] * (len(seq2) + 1)) for _ in range(len(seq1) + 1)]
-
-        # row 0 and column 0 are initialized to 0 already
-        for i, char1 in enumerate(seq1):
-            for j, char2 in enumerate(seq2):
-                if char1 == char2:
-                    lengths[i + 1][j + 1] = lengths[i][j] + 1
-                else:
-                    lengths[i + 1][j + 1] = max(lengths[i + 1][j], lengths[i][j + 1])
-
-        # read the substring out from the matrix
-        result = ''
-        i, j = len(seq1), len(seq2)
-        while i != 0 and j != 0:
-            if lengths[i][j] == lengths[i - 1][j]:
-                i -= 1
-            elif lengths[i][j] == lengths[i][j - 1]:
-                j -= 1
-            else:
-                assert seq1[i - 1] == seq2[j - 1]
-                result = seq1[i - 1] + result
-                i -= 1
-                j -= 1
-        return result
-
-    def _recursive(self, *sequences: str) -> str:
-        if not all(sequences):
-            return type(sequences[0])()  # empty sequence
-        if self.test_func(*[s[-1] for s in sequences]):
-            c = sequences[0][-1]
-            sequences = tuple(s[:-1] for s in sequences)
-            return self(*sequences) + c
-        m = type(sequences[0])()  # empty sequence
-        for i, s in enumerate(sequences):
-            ss = sequences[:i] + (s[:-1], ) + sequences[i + 1:]
-            m = max([self(*ss), m], key=len)
-        return m
-
     def __call__(self, *sequences: str) -> str:
+        if self.test_func is not self._ident:
+            raise NotImplementedError(
+                'LCSSeq with a custom test_func is not supported by the Rust-backed port',
+            )
         if not sequences:
             return ''
-        sequences = self._get_sequences(*sequences)
-        if len(sequences) == 2:
-            return self._dynamic(*sequences)
-        else:
-            return self._recursive(*sequences)
+        return _rust.compute('lcsseq', self.__dict__, 'call', *sequences)
 
     def similarity(self, *sequences) -> int:
-        return len(self(*sequences))
+        if self.test_func is not self._ident:
+            raise NotImplementedError(
+                'LCSSeq with a custom test_func is not supported by the Rust-backed port',
+            )
+        if not sequences:
+            return 0
+        return _rust.compute('lcsseq', self.__dict__, 'similarity', *sequences)
 
 
 class LCSStr(_BaseSimilarity):
     """longest common substring similarity
     """
 
-    def _standart(self, s1: str, s2: str) -> str:
-        matcher = _SequenceMatcher(a=s1, b=s2)
-        match = matcher.find_longest_match(0, len(s1), 0, len(s2))
-        return s1[match.a: match.a + match.size]
-
-    def _custom(self, *sequences: str) -> str:
-        short = min(sequences, key=len)
-        length = len(short)
-        for n in range(length, 0, -1):
-            for subseq in find_ngrams(short, n):
-                joined = ''.join(subseq)
-                for seq in sequences:
-                    if joined not in seq:
-                        break
-                else:
-                    return joined
-        return type(short)()  # empty sequence
-
     def __call__(self, *sequences: str) -> str:
-        if not all(sequences):
+        if not sequences:
             return ''
-        length = len(sequences)
-        if length == 0:
-            return ''
-        if length == 1:
-            return sequences[0]
-
-        sequences = self._get_sequences(*sequences)
-        if length == 2 and max(map(len, sequences)) < 200:
-            return self._standart(*sequences)
-        return self._custom(*sequences)
+        return _rust.compute('lcsstr', self.__dict__, 'call', *sequences)
 
     def similarity(self, *sequences: str) -> int:
-        return len(self(*sequences))
+        if not sequences:
+            return 0
+        return _rust.compute('lcsstr', self.__dict__, 'similarity', *sequences)
 
 
 class RatcliffObershelp(_BaseSimilarity):
@@ -160,25 +80,10 @@ class RatcliffObershelp(_BaseSimilarity):
     """
 
     def maximum(self, *sequences: str) -> int:
-        return 1
-
-    def _find(self, *sequences: str) -> int:
-        subseq = LCSStr()(*sequences)
-        length = len(subseq)
-        if length == 0:
-            return 0
-        before = [s[:s.find(subseq)] for s in sequences]
-        after = [s[s.find(subseq) + length:] for s in sequences]
-        return self._find(*before) + length + self._find(*after)
+        return _rust.compute('ratcliff_obershelp', self.__dict__, 'maximum', *sequences)
 
     def __call__(self, *sequences: str) -> float:
-        result = self.quick_answer(*sequences)
-        if result is not None:
-            return result
-        scount = len(sequences)  # sequences count
-        ecount = sum(map(len, sequences))  # elements count
-        sequences = self._get_sequences(*sequences)
-        return scount * self._find(*sequences) / ecount
+        return _rust.compute('ratcliff_obershelp', self.__dict__, 'call', *sequences)
 
 
 lcsseq = LCSSeq()
