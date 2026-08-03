@@ -1,0 +1,164 @@
+{
+  "algorithm": "matrix",
+  "cases": [
+    {
+      "id": "empty-zero-sequences",
+      "category": "empty",
+      "inputs": [],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      },
+      "note": "_ident() with no elements is False -> mismatch_cost"
+    },
+    {
+      "id": "equal",
+      "category": "equal",
+      "inputs": [
+        "a",
+        "a"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "different",
+      "category": "different",
+      "inputs": [
+        "a",
+        "b"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "unicode",
+      "category": "unicode",
+      "inputs": [
+        "café",
+        "café"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "multi-sequence-3",
+      "category": "multi_sequence",
+      "inputs": [
+        "a",
+        "a",
+        "a"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "integers",
+      "category": "integers",
+      "inputs": [
+        [
+          1000,
+          2
+        ],
+        [
+          1000,
+          2
+        ]
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "bytes",
+      "category": "bytes",
+      "inputs": [
+        {
+          "__bytes_hex__": "6162"
+        },
+        {
+          "__bytes_hex__": "6162"
+        }
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "options-custom-costs",
+      "category": "options",
+      "inputs": [
+        "x",
+        "y"
+      ],
+      "options": {
+        "mismatch_cost": -1.0,
+        "match_cost": 2.0
+      },
+      "expected": {
+        "distance": 3.0,
+        "similarity": -1.0,
+        "normalized_distance": 1.5,
+        "normalized_similarity": -0.5,
+        "maximum": 2.0
+      }
+    },
+    {
+      "id": "options-custom-costs-match",
+      "category": "options",
+      "inputs": [
+        "x",
+        "x"
+      ],
+      "options": {
+        "mismatch_cost": -1.0,
+        "match_cost": 2.0
+      },
+      "expected": {
+        "distance": 0.0,
+        "similarity": 2.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 2.0
+      }
+    }
+  ]
+}

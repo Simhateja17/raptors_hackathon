@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 # built-in
-from itertools import takewhile
 from typing import Sequence
 
 # app
+from .. import _rust_adapter as _rust
 from .base import Base as _Base, BaseSimilarity as _BaseSimilarity
 from .types import SimFunc
 
@@ -24,24 +24,22 @@ class Prefix(_BaseSimilarity):
         self.sim_test = sim_test or self._ident
 
     def __call__(self, *sequences: Sequence) -> Sequence:
+        if self.sim_test is not self._ident:
+            raise NotImplementedError(
+                'Prefix with a custom sim_test is not supported by the Rust-backed port',
+            )
         if not sequences:
             return ''
-        sequences = self._get_sequences(*sequences)
-
-        def test(seq):
-            return self.sim_test(*seq)
-
-        result = [c[0] for c in takewhile(test, zip(*sequences))]
-
-        s = sequences[0]
-        if isinstance(s, str):
-            return ''.join(result)
-        if isinstance(s, bytes):
-            return b''.join(result)
-        return result
+        return _rust.compute('prefix', self.__dict__, 'call', *sequences)
 
     def similarity(self, *sequences: Sequence) -> int:
-        return len(self(*sequences))
+        if self.sim_test is not self._ident:
+            raise NotImplementedError(
+                'Prefix with a custom sim_test is not supported by the Rust-backed port',
+            )
+        if not sequences:
+            return 0
+        return _rust.compute('prefix', self.__dict__, 'similarity', *sequences)
 
 
 class Postfix(Prefix):
@@ -49,14 +47,13 @@ class Postfix(Prefix):
     """
 
     def __call__(self, *sequences: Sequence) -> Sequence:
-        s = sequences[0]
-        sequences = [list(reversed(s)) for s in sequences]
-        result = reversed(super().__call__(*sequences))
-        if isinstance(s, str):
-            return ''.join(result)
-        if isinstance(s, bytes):
-            return b''.join(result)
-        return list(result)
+        if self.sim_test is not self._ident:
+            raise NotImplementedError(
+                'Postfix with a custom sim_test is not supported by the Rust-backed port',
+            )
+        if not sequences:
+            return ''
+        return _rust.compute('postfix', self.__dict__, 'call', *sequences)
 
 
 class Length(_Base):
@@ -64,8 +61,7 @@ class Length(_Base):
     """
 
     def __call__(self, *sequences: Sequence) -> int:
-        lengths = list(map(len, sequences))
-        return max(lengths) - min(lengths)
+        return _rust.compute('length', self.__dict__, 'call', *sequences)
 
 
 class Identity(_BaseSimilarity):
@@ -73,10 +69,10 @@ class Identity(_BaseSimilarity):
     """
 
     def maximum(self, *sequences: Sequence) -> int:
-        return 1
+        return _rust.compute('identity', self.__dict__, 'maximum', *sequences)
 
     def __call__(self, *sequences: Sequence) -> int:
-        return int(self._ident(*sequences))
+        return _rust.compute('identity', self.__dict__, 'call', *sequences)
 
 
 class Matrix(_BaseSimilarity):
@@ -97,27 +93,14 @@ class Matrix(_BaseSimilarity):
         self.symmetric = symmetric
 
     def maximum(self, *sequences: Sequence) -> int:
-        return self.match_cost
+        return _rust.compute('matrix', self.__dict__, 'maximum', *sequences)
 
     def __call__(self, *sequences: Sequence) -> int:
-        if not self.mat:
-            if self._ident(*sequences):
-                return self.match_cost
-            return self.mismatch_cost
-
-        # search in matrix
-        if sequences in self.mat:
-            return self.mat[sequences]
-        # search in symmetric matrix
-        if self.symmetric:
-            sequences = tuple(reversed(sequences))
-            if sequences in self.mat:
-                return self.mat[sequences]
-        # if identity then return match_cost
-        if self._ident(*sequences):
-            return self.match_cost
-        # not found
-        return self.mismatch_cost
+        if self.mat:
+            raise NotImplementedError(
+                'Matrix with a custom mat= lookup table is not supported by the Rust-backed port',
+            )
+        return _rust.compute('matrix', self.__dict__, 'call', *sequences)
 
 
 prefix = Prefix()
