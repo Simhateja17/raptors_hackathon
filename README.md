@@ -21,6 +21,12 @@ make benchmark  # Rust/native and frozen-Python benchmark results
 make demo       # short deterministic walkthrough
 ```
 
+The Makefile prefers an available project interpreter under `.venvs/` and
+pins PyO3 to that same interpreter via `PYO3_PYTHON=$(PYTHON)`. You can choose
+another one explicitly, for example `make PYTHON=/path/to/python verify`. If
+Python was upgraded, remove stale build artifacts once with `cargo clean` and
+rerun `make build`.
+
 The original test snapshot is under `tests/original/` and is hash-checked by
 `make verify`; no file in that snapshot is modified. See
 [`docs/DECISIONS.md`](docs/DECISIONS.md) for the FFI and compatibility choices,

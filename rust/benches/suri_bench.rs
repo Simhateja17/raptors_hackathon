@@ -95,8 +95,6 @@ fn prepare(pairs: &[(String, String)]) -> Vec<Vec<PreparedSequence>> {
 
 struct AlgoResult {
     algorithm: String,
-    runs: u32,
-    calls_per_run: usize,
     total_calls: u64,
     total_seconds: f64,
     seconds_per_call: f64,
@@ -143,8 +141,6 @@ fn bench_short<A: OutputAlgorithm>(
 
     AlgoResult {
         algorithm: name.to_string(),
-        runs: RUNS,
-        calls_per_run: cases.len(),
         total_calls,
         total_seconds,
         seconds_per_call,

@@ -1,7 +1,10 @@
 .PHONY: build test verify benchmark demo test-external
 
-PYTHON ?= python3
+PYTHON ?= $(or $(wildcard .venvs/g0/bin/python),$(wildcard .venvs/pytest-pure/bin/python),$(wildcard .venvs/pytest-ext/bin/python),python3)
 CARGO ?= cargo
+PYO3_PYTHON ?= $(if $(wildcard $(PYTHON)),$(abspath $(PYTHON)),$(shell command -v $(PYTHON)))
+
+export PYO3_PYTHON
 
 build:
 	PYO3_BUILD_EXTENSION_MODULE=1 $(CARGO) build --features python-extension

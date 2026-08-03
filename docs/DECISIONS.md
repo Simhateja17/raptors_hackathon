@@ -47,4 +47,7 @@ also runs optional-provider comparisons; in the current Python 3.14/RapidFuzz
 3.14.5 environment, three tests expose a RapidFuzz large-integer sequence
 coercion mismatch. The frozen pure-Python implementation produces the same
 values as the Rust port for that pair, so the port is not changed to imitate
-the provider quirk.
+the provider quirk. The Makefile prefers the available project test
+interpreter under `.venvs/`, exports `PYO3_PYTHON=$(PYTHON)`, and therefore
+keeps PyO3 and pytest on the same Python installation. If Python is upgraded,
+`cargo clean` removes any old framework-linked target artifacts.
