@@ -1,0 +1,169 @@
+{
+  "algorithm": "postfix",
+  "cases": [
+    {
+      "id": "different-0",
+      "category": "different",
+      "inputs": [
+        "test",
+        "text"
+      ],
+      "options": {},
+      "expected": {
+        "call": "t",
+        "similarity": 2.0
+      }
+    },
+    {
+      "id": "edge_case-1",
+      "category": "edge_case",
+      "inputs": [
+        "testme",
+        "textthis"
+      ],
+      "options": {},
+      "expected": {
+        "call": "",
+        "similarity": 2.0
+      }
+    },
+    {
+      "id": "equal-2",
+      "category": "equal",
+      "inputs": [
+        "abc",
+        "abc"
+      ],
+      "options": {},
+      "expected": {
+        "call": "abc",
+        "similarity": 3.0
+      }
+    },
+    {
+      "id": "edge_case-3",
+      "category": "edge_case",
+      "inputs": [
+        "xyz",
+        "abc"
+      ],
+      "options": {},
+      "expected": {
+        "call": "",
+        "similarity": 0.0
+      }
+    },
+    {
+      "id": "different-4",
+      "category": "different",
+      "inputs": [
+        "cdab",
+        "efab"
+      ],
+      "options": {},
+      "expected": {
+        "call": "ab",
+        "similarity": 0.0
+      }
+    },
+    {
+      "id": "different-5",
+      "category": "different",
+      "inputs": [
+        "teria cafe",
+        "big cafe"
+      ],
+      "options": {},
+      "expected": {
+        "call": " cafe",
+        "similarity": 0.0
+      }
+    },
+    {
+      "id": "empty-left",
+      "category": "empty",
+      "inputs": [
+        "",
+        "abc"
+      ],
+      "options": {},
+      "expected": {
+        "call": "",
+        "similarity": 0.0
+      }
+    },
+    {
+      "id": "empty-right",
+      "category": "empty",
+      "inputs": [
+        "abc",
+        ""
+      ],
+      "options": {},
+      "expected": {
+        "call": "",
+        "similarity": 0.0
+      }
+    },
+    {
+      "id": "multi-sequence-3",
+      "category": "multi_sequence",
+      "inputs": [
+        "wxyz",
+        "axyz",
+        "bxyz"
+      ],
+      "options": {},
+      "expected": {
+        "call": "xyz",
+        "similarity": 0.0
+      }
+    },
+    {
+      "id": "bytes",
+      "category": "bytes",
+      "inputs": [
+        {
+          "__bytes_hex__": "7778616263"
+        },
+        {
+          "__bytes_hex__": "7a7a616263"
+        }
+      ],
+      "options": {},
+      "expected": {
+        "call": "616263",
+        "similarity": 0.0
+      },
+      "note": "call result is hex-encoded bytes"
+    },
+    {
+      "id": "integers",
+      "category": "integers",
+      "inputs": [
+        [
+          1,
+          2,
+          1000,
+          4
+        ],
+        [
+          9,
+          2,
+          1000,
+          4
+        ]
+      ],
+      "options": {},
+      "expected": {
+        "call": [
+          2,
+          1000,
+          4
+        ],
+        "similarity": 0.0
+      },
+      "note": "values >255 chosen deliberately: see known-issues.md"
+    }
+  ]
+}

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 # built-in
-from functools import reduce
-from itertools import islice, permutations, repeat
-from math import log
+from itertools import repeat
 from typing import Sequence
 
 # app
+from .. import _rust_adapter as _rust
 from .base import Base as _Base, BaseSimilarity as _BaseSimilarity
 from .edit_based import DamerauLevenshtein
 
@@ -42,19 +41,10 @@ class Jaccard(_BaseSimilarity):
         self.external = external
 
     def maximum(self, *sequences: Sequence) -> int:
-        return 1
+        return _rust.compute('jaccard', self.__dict__, 'maximum', *sequences)
 
     def __call__(self, *sequences: Sequence) -> float:
-        result = self.quick_answer(*sequences)
-        if result is not None:
-            return result
-
-        sequences = self._get_counters(*sequences)               # sets
-        intersection = self._intersect_counters(*sequences)      # set
-        intersection = self._count_counters(intersection)        # int
-        union = self._union_counters(*sequences)                 # set
-        union = self._count_counters(union)                      # int
-        return intersection / union
+        return _rust.compute('jaccard', self.__dict__, 'call', *sequences)
 
 
 class Sorensen(_BaseSimilarity):
@@ -74,18 +64,10 @@ class Sorensen(_BaseSimilarity):
         self.external = external
 
     def maximum(self, *sequences: Sequence) -> int:
-        return 1
+        return _rust.compute('sorensen', self.__dict__, 'maximum', *sequences)
 
     def __call__(self, *sequences: Sequence) -> float:
-        result = self.quick_answer(*sequences)
-        if result is not None:
-            return result
-
-        sequences = self._get_counters(*sequences)               # sets
-        count = sum(self._count_counters(s) for s in sequences)
-        intersection = self._intersect_counters(*sequences)      # set
-        intersection = self._count_counters(intersection)        # int
-        return 2.0 * intersection / count
+        return _rust.compute('sorensen', self.__dict__, 'call', *sequences)
 
 
 class Tversky(_BaseSimilarity):
@@ -113,33 +95,22 @@ class Tversky(_BaseSimilarity):
         self.as_set = as_set
         self.external = external
 
+    def _rust_config(self) -> dict:
+        # `self.ks` is either the source's infinite `repeat(1)` sentinel
+        # (meaning "no custom coefficients") or a concrete sequence the
+        # caller supplied; only the latter can cross the Rust boundary.
+        config = dict(self.__dict__)
+        if isinstance(self.ks, repeat):
+            config.pop('ks', None)
+        else:
+            config['ks'] = list(self.ks)
+        return config
+
     def maximum(self, *sequences: Sequence) -> int:
-        return 1
+        return _rust.compute('tversky', self._rust_config(), 'maximum', *sequences)
 
     def __call__(self, *sequences: Sequence) -> float:
-        quick_result = self.quick_answer(*sequences)
-        if quick_result is not None:
-            return quick_result
-
-        sequences = self._get_counters(*sequences)                # sets
-        intersection = self._intersect_counters(*sequences)       # set
-        intersection = self._count_counters(intersection)         # int
-        sequences = [self._count_counters(s) for s in sequences]  # ints
-        ks = list(islice(self.ks, len(sequences)))
-
-        if len(sequences) != 2 or self.bias is None:
-            result = intersection
-            for k, s in zip(ks, sequences):
-                result += k * (s - intersection)
-            return intersection / result
-
-        s1, s2 = sequences
-        alpha, beta = ks
-        a_val = min([s1, s2])
-        b_val = max([s1, s2])
-        c_val = intersection + self.bias
-        result = alpha * beta * (a_val - b_val) + b_val * beta
-        return c_val / (result + c_val)
+        return _rust.compute('tversky', self._rust_config(), 'call', *sequences)
 
 
 class Overlap(_BaseSimilarity):
@@ -164,19 +135,10 @@ class Overlap(_BaseSimilarity):
         self.external = external
 
     def maximum(self, *sequences: Sequence) -> int:
-        return 1
+        return _rust.compute('overlap', self.__dict__, 'maximum', *sequences)
 
     def __call__(self, *sequences: Sequence) -> float:
-        result = self.quick_answer(*sequences)
-        if result is not None:
-            return result
-
-        sequences = self._get_counters(*sequences)                  # sets
-        intersection = self._intersect_counters(*sequences)         # set
-        intersection = self._count_counters(intersection)           # int
-        sequences = [self._count_counters(s) for s in sequences]    # ints
-
-        return intersection / min(sequences)
+        return _rust.compute('overlap', self.__dict__, 'call', *sequences)
 
 
 class Cosine(_BaseSimilarity):
@@ -201,20 +163,10 @@ class Cosine(_BaseSimilarity):
         self.external = external
 
     def maximum(self, *sequences: Sequence) -> int:
-        return 1
+        return _rust.compute('cosine', self.__dict__, 'maximum', *sequences)
 
     def __call__(self, *sequences: Sequence) -> float:
-        result = self.quick_answer(*sequences)
-        if result is not None:
-            return result
-
-        sequences = self._get_counters(*sequences)                  # sets
-        intersection = self._intersect_counters(*sequences)         # set
-        intersection = self._count_counters(intersection)           # int
-        sequences = [self._count_counters(s) for s in sequences]    # ints
-        prod = reduce(lambda x, y: x * y, sequences)
-
-        return intersection / pow(prod, 1.0 / len(sequences))
+        return _rust.compute('cosine', self.__dict__, 'call', *sequences)
 
 
 class Tanimoto(Jaccard):
@@ -231,11 +183,7 @@ class Tanimoto(Jaccard):
     """
 
     def __call__(self, *sequences: Sequence) -> float:
-        result = super().__call__(*sequences)
-        if result == 0:
-            return float('-inf')
-        else:
-            return log(result, 2)
+        return _rust.compute('tanimoto', self.__dict__, 'call', *sequences)
 
 
 class MongeElkan(_BaseSimilarity):
@@ -263,38 +211,25 @@ class MongeElkan(_BaseSimilarity):
         self.qval = qval
         self.external = external
 
-    def maximum(self, *sequences: Sequence) -> float:
-        result = self.algorithm.maximum(sequences)
-        for seq in sequences:
-            if seq:
-                result = max(result, self.algorithm.maximum(*seq))
-        return result
+    def _check_supported(self) -> None:
+        default = type(self.algorithm).__name__ in {
+            'DamerauLevenshtein',
+            'Jaro',
+            'JaroWinkler',
+        }
+        if not default:
+            raise NotImplementedError(
+                'MongeElkan supports the built-in Damerau-Levenshtein, Jaro, '
+                'and Jaro-Winkler comparators in the Rust-backed port',
+            )
 
-    def _calc(self, seq, *sequences: Sequence) -> float:
-        if not seq:
-            return 0
-        maxes = []
-        for c1 in seq:
-            for s in sequences:
-                max_sim = float('-inf')
-                for c2 in s:
-                    max_sim = max(max_sim, self.algorithm.similarity(c1, c2))
-                maxes.append(max_sim)
-        return sum(maxes) / len(seq) / len(maxes)
+    def maximum(self, *sequences: Sequence) -> float:
+        self._check_supported()
+        return _rust.compute('monge_elkan', self.__dict__, 'maximum', *sequences)
 
     def __call__(self, *sequences: Sequence) -> float:
-        quick_result = self.quick_answer(*sequences)
-        if quick_result is not None:
-            return quick_result
-        sequences = self._get_sequences(*sequences)
-
-        if self.symmetric:
-            result = []
-            for seqs in permutations(sequences):
-                result.append(self._calc(*seqs))
-            return sum(result) / len(result)
-        else:
-            return self._calc(*sequences)
+        self._check_supported()
+        return _rust.compute('monge_elkan', self.__dict__, 'call', *sequences)
 
 
 class Bag(_Base):
@@ -310,9 +245,7 @@ class Bag(_Base):
     """
 
     def __call__(self, *sequences: Sequence) -> float:
-        sequences = self._get_counters(*sequences)              # sets
-        intersection = self._intersect_counters(*sequences)     # set
-        return max(self._count_counters(sequence - intersection) for sequence in sequences)
+        return _rust.compute('bag', self.__dict__, 'call', *sequences)
 
 
 bag = Bag()

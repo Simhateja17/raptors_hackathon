@@ -1,0 +1,154 @@
+{
+  "algorithm": "bwtrle_ncd",
+  "cases": [
+    {
+      "id": "empty-empty",
+      "category": "empty",
+      "inputs": [
+        "",
+        ""
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1
+      }
+    },
+    {
+      "id": "empty-nonempty",
+      "category": "empty",
+      "inputs": [
+        "",
+        "abc"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.75,
+        "similarity": 0.25,
+        "normalized_distance": 0.75,
+        "normalized_similarity": 0.25,
+        "maximum": 1
+      }
+    },
+    {
+      "id": "equal",
+      "category": "equal",
+      "inputs": [
+        "test",
+        "test"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.6,
+        "similarity": 0.4,
+        "normalized_distance": 0.6,
+        "normalized_similarity": 0.4,
+        "maximum": 1
+      },
+      "note": "NCD family has no quick_answer shortcut; equal strings are not automatically 0"
+    },
+    {
+      "id": "different",
+      "category": "different",
+      "inputs": [
+        "test",
+        "nani"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.8,
+        "similarity": 0.19999999999999996,
+        "normalized_distance": 0.8,
+        "normalized_similarity": 0.19999999999999996,
+        "maximum": 1
+      }
+    },
+    {
+      "id": "unicode-combining",
+      "category": "unicode",
+      "inputs": [
+        "café",
+        "cafe"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.8333333333333334,
+        "similarity": 0.16666666666666663,
+        "normalized_distance": 0.8333333333333334,
+        "normalized_similarity": 0.16666666666666663,
+        "maximum": 1
+      }
+    },
+    {
+      "id": "multi-sequence-3",
+      "category": "multi_sequence",
+      "inputs": [
+        "abc",
+        "abd",
+        "abe"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1
+      }
+    },
+    {
+      "id": "options-custom-terminator",
+      "category": "options",
+      "inputs": [
+        "test",
+        "nani"
+      ],
+      "options": {
+        "terminator": "$"
+      },
+      "expected": {
+        "distance": 0.8,
+        "similarity": 0.19999999999999996,
+        "normalized_distance": 0.8,
+        "normalized_similarity": 0.19999999999999996,
+        "maximum": 1
+      }
+    },
+    {
+      "id": "edge-repeated-run",
+      "category": "edge_case",
+      "inputs": [
+        "aaaa",
+        "aa"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 1
+      },
+      "note": "exercises RLE run-length>2 branch"
+    },
+    {
+      "id": "edge-terminator-present",
+      "category": "edge_case",
+      "inputs": [
+        "banana",
+        "bandana"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.5,
+        "similarity": 0.5,
+        "normalized_distance": 0.5,
+        "normalized_similarity": 0.5,
+        "maximum": 1
+      }
+    }
+  ]
+}

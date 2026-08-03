@@ -12,15 +12,41 @@ use pyo3::prelude::*;
 use pyo3::types::{PyAny, PyBool, PyBytes, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple};
 
 use crate::algorithms::{
-    arith_ncd::ArithNCD, bwtrle_ncd::BWTRLENCD, bz2_ncd::Bz2Ncd, cosine::Cosine,
-    damerau_levenshtein::DamerauLevenshtein, editex::Editex, entropy_ncd::EntropyNcd, gotoh::Gotoh,
-    hamming::Hamming, identity::Identity, jaccard::Jaccard, jaro::Jaro, jaro_winkler::JaroWinkler,
-    lcsseq::LCSSeq, lcsstr::LCSStr, length::Length, levenshtein::Levenshtein, lzma_ncd::LzmaNcd,
-    matrix::Matrix, mlipns::MLIPNS, monge_elkan::MongeElkan, mra::MRA,
-    needleman_wunsch::NeedlemanWunsch, overlap::Overlap, postfix::Postfix, prefix::Prefix,
-    ratcliff_obershelp::RatcliffObershelp, rle_ncd::RleNcd, smith_waterman::SmithWaterman,
-    sorensen::Sorensen, sqrt_ncd::SqrtNcd, strcmp95::StrCmp95, tanimoto::Tanimoto,
-    tversky::Tversky, zlib_ncd::ZlibNcd,
+    arith_ncd::ArithNCD,
+    bwtrle_ncd::BWTRLENCD,
+    bz2_ncd::Bz2Ncd,
+    cosine::Cosine,
+    damerau_levenshtein::DamerauLevenshtein,
+    editex::Editex,
+    entropy_ncd::EntropyNcd,
+    gotoh::Gotoh,
+    hamming::Hamming,
+    identity::Identity,
+    jaccard::Jaccard,
+    jaro::Jaro,
+    jaro_winkler::JaroWinkler,
+    lcsseq::LCSSeq,
+    lcsstr::LCSStr,
+    length::Length,
+    levenshtein::Levenshtein,
+    lzma_ncd::LzmaNcd,
+    matrix::Matrix,
+    mlipns::MLIPNS,
+    monge_elkan::MongeElkan,
+    mra::MRA,
+    needleman_wunsch::{MatrixScorer, NeedlemanWunsch},
+    overlap::Overlap,
+    postfix::Postfix,
+    prefix::Prefix,
+    ratcliff_obershelp::RatcliffObershelp,
+    rle_ncd::RleNcd,
+    smith_waterman::SmithWaterman,
+    sorensen::Sorensen,
+    sqrt_ncd::SqrtNcd,
+    strcmp95::StrCmp95,
+    tanimoto::Tanimoto,
+    tversky::Tversky,
+    zlib_ncd::ZlibNcd,
 };
 use crate::core::{
     output_distance, output_similarity, prepare_sequences, Algorithm, AlgorithmError,
@@ -193,6 +219,8 @@ pub struct RustAlgorithm {
     match_cost: i64,
     group_cost: i64,
     mismatch_cost: i64,
+    matrix_match_cost: f64,
+    matrix_mismatch_cost: f64,
     matrix: Option<BTreeMap<Vec<PreparedSequence>, f64>>,
     monge_comparator: String,
 }
@@ -205,9 +233,10 @@ impl RustAlgorithm {
         options: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<Self> {
         reject_python_callbacks(options)?;
+        let kind = AlgorithmKind::parse(name)?;
 
         Ok(Self {
-            kind: AlgorithmKind::parse(name)?,
+            kind,
             qval,
             external,
             as_set: option_bool(options, "as_set", false)?,
@@ -228,9 +257,23 @@ impl RustAlgorithm {
             long_strings: option_bool(options, "long_strings", false)?,
             threshold: option_f64(options, "threshold", 0.25)?,
             maxmismatches: option_usize(options, "maxmismatches", 2)?,
-            match_cost: option_i64(options, "match_cost", 0)?,
-            group_cost: option_i64(options, "group_cost", 1)?,
-            mismatch_cost: option_i64(options, "mismatch_cost", 2)?,
+            match_cost: if matches!(kind, AlgorithmKind::Editex) {
+                option_i64(options, "match_cost", 0)?
+            } else {
+                0
+            },
+            group_cost: if matches!(kind, AlgorithmKind::Editex) {
+                option_i64(options, "group_cost", 1)?
+            } else {
+                1
+            },
+            mismatch_cost: if matches!(kind, AlgorithmKind::Editex) {
+                option_i64(options, "mismatch_cost", 2)?
+            } else {
+                2
+            },
+            matrix_match_cost: option_f64(options, "match_cost", 1.0)?,
+            matrix_mismatch_cost: option_f64(options, "mismatch_cost", 0.0)?,
             matrix: option_matrix(options)?,
             monge_comparator: option_string(
                 options,
@@ -258,6 +301,24 @@ impl RustAlgorithm {
         prepare_sequences(inputs, qvalue).map_err(input_error)
     }
 
+    fn matrix_scorer(&self) -> Option<MatrixScorer> {
+        let matrix = self.matrix.as_ref()?;
+        let entries = matrix
+            .iter()
+            .filter_map(|(key, score)| match key.as_slice() {
+                [left, right] if left.len() == 1 && right.len() == 1 => {
+                    Some(((left[0].clone(), right[0].clone()), *score))
+                }
+                _ => None,
+            });
+        Some(MatrixScorer::new(
+            entries,
+            self.matrix_mismatch_cost,
+            self.matrix_match_cost,
+            self.symmetric,
+        ))
+    }
+
     fn evaluate(
         &self,
         inputs: &[InputSequence],
@@ -269,18 +330,45 @@ impl RustAlgorithm {
                 &DamerauLevenshtein::with_restricted(self.restricted),
                 prepared,
             )),
-            AlgorithmKind::NeedlemanWunsch => Ok(numeric(
-                &NeedlemanWunsch::with_gap_cost(self.gap_cost),
-                prepared,
-            )),
-            AlgorithmKind::SmithWaterman => Ok(numeric(
-                &SmithWaterman::with_gap_cost(self.gap_cost),
-                prepared,
-            )),
-            AlgorithmKind::Gotoh => Ok(numeric(
-                &Gotoh::with_gap_costs(self.gap_open, self.gap_ext),
-                prepared,
-            )),
+            AlgorithmKind::NeedlemanWunsch => {
+                if let Some(scorer) = self.matrix_scorer() {
+                    Ok(numeric(
+                        &NeedlemanWunsch::with_scorer(self.gap_cost, scorer),
+                        prepared,
+                    ))
+                } else {
+                    Ok(numeric(
+                        &NeedlemanWunsch::with_gap_cost(self.gap_cost),
+                        prepared,
+                    ))
+                }
+            }
+            AlgorithmKind::SmithWaterman => {
+                if let Some(scorer) = self.matrix_scorer() {
+                    Ok(numeric(
+                        &SmithWaterman::with_scorer(self.gap_cost, scorer),
+                        prepared,
+                    ))
+                } else {
+                    Ok(numeric(
+                        &SmithWaterman::with_gap_cost(self.gap_cost),
+                        prepared,
+                    ))
+                }
+            }
+            AlgorithmKind::Gotoh => {
+                if let Some(scorer) = self.matrix_scorer() {
+                    Ok(numeric(
+                        &Gotoh::with_scorer(self.gap_open, self.gap_ext, scorer),
+                        prepared,
+                    ))
+                } else {
+                    Ok(numeric(
+                        &Gotoh::with_gap_costs(self.gap_open, self.gap_ext),
+                        prepared,
+                    ))
+                }
+            }
             AlgorithmKind::StrCmp95 => Ok(numeric(
                 &StrCmp95::with_long_strings(self.long_strings),
                 prepared,
@@ -454,8 +542,8 @@ impl RustAlgorithm {
             AlgorithmKind::Matrix => Ok(numeric(
                 &Matrix::new(
                     self.matrix.clone(),
-                    self.mismatch_cost as f64,
-                    self.match_cost as f64,
+                    self.matrix_mismatch_cost,
+                    self.matrix_match_cost,
                     self.symmetric,
                     self.external,
                 ),
@@ -677,8 +765,51 @@ fn input_from_items<'py>(items: Vec<Bound<'py, PyAny>>) -> PyResult<InputSequenc
             .map(InputSequence::Integers);
     }
 
+    if items.iter().all(|item| item.extract::<String>().is_ok()) {
+        return items
+            .into_iter()
+            .map(|item| item.extract::<String>().map(Element::Text))
+            .collect::<PyResult<Vec<_>>>()
+            .map(InputSequence::Elements);
+    }
+
+    if items
+        .iter()
+        .all(|item| item.is_instance_of::<PyList>() || item.is_instance_of::<PyTuple>())
+    {
+        let mut grams = Vec::with_capacity(items.len());
+        for item in items {
+            let nested: Vec<Bound<'_, PyAny>> = if let Ok(tuple) = item.cast::<PyTuple>() {
+                tuple.iter().collect()
+            } else {
+                item.cast::<PyList>()?.iter().collect()
+            };
+            let mut values = Vec::with_capacity(nested.len());
+            for value in nested {
+                if let Ok(text) = value.extract::<String>() {
+                    let mut chars = text.chars();
+                    if let (Some(character), None) = (chars.next(), chars.next()) {
+                        values.push(Element::Char(character));
+                    } else {
+                        values.push(Element::Text(text));
+                    }
+                } else if let Ok(integer) = value.extract::<i64>() {
+                    values.push(Element::Integer(integer));
+                } else if let Ok(boolean) = value.extract::<bool>() {
+                    values.push(Element::Boolean(boolean));
+                } else {
+                    return Err(PyTypeError::new_err(
+                        "Rust adapter requires homogeneous q-gram elements",
+                    ));
+                }
+            }
+            grams.push(Element::Gram(values));
+        }
+        return Ok(InputSequence::Elements(grams));
+    }
+
     Err(PyTypeError::new_err(
-        "Rust adapter requires homogeneous integer or boolean sequences",
+        "Rust adapter requires homogeneous integer, boolean, or string sequences",
     ))
 }
 
@@ -742,7 +873,7 @@ fn element_to_py(py: Python<'_>, element: &Element) -> PyResult<Py<PyAny>> {
             for value in values {
                 list.append(element_to_py(py, value)?)?;
             }
-            list.into_any().unbind()
+            list.to_tuple().into_any().unbind()
         }
     })
 }

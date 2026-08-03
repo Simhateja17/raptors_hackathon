@@ -38,31 +38,27 @@ impl Rational {
         }
     }
 
-    fn add(self, other: Self) -> Self {
-        Self::new(
-            self.numerator
-                .checked_mul(other.denominator)
-                .and_then(|value| {
-                    other
-                        .numerator
-                        .checked_mul(self.denominator)
-                        .and_then(|other_value| value.checked_add(other_value))
-                })
-                .expect("arithmetic-coding rational numerator overflow"),
-            self.denominator
-                .checked_mul(other.denominator)
-                .expect("arithmetic-coding rational denominator overflow"),
-        )
+    fn try_add(self, other: Self) -> Option<Self> {
+        let numerator = self
+            .numerator
+            .checked_mul(other.denominator)?
+            .checked_add(other.numerator.checked_mul(self.denominator)?)?;
+        let denominator = self.denominator.checked_mul(other.denominator)?;
+        Some(Self::new(numerator, denominator))
     }
 
-    fn multiply(self, other: Self) -> Self {
-        Self::new(
+    fn try_multiply(self, other: Self) -> Option<Self> {
+        Some(Self::new(
+            self.numerator.checked_mul(other.numerator)?,
+            self.denominator.checked_mul(other.denominator)?,
+        ))
+    }
+
+    fn try_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(
             self.numerator
-                .checked_mul(other.numerator)
-                .expect("arithmetic-coding rational numerator overflow"),
-            self.denominator
-                .checked_mul(other.denominator)
-                .expect("arithmetic-coding rational denominator overflow"),
+                .checked_mul(other.denominator)?
+                .cmp(&other.numerator.checked_mul(self.denominator)?),
         )
     }
 }
@@ -75,15 +71,11 @@ impl PartialOrd for Rational {
 
 impl Ord for Rational {
     fn cmp(&self, other: &Self) -> Ordering {
-        let left = self
-            .numerator
-            .checked_mul(other.denominator)
-            .expect("arithmetic-coding comparison overflow");
-        let right = other
-            .numerator
-            .checked_mul(self.denominator)
-            .expect("arithmetic-coding comparison overflow");
-        left.cmp(&right)
+        self.try_cmp(other).unwrap_or_else(|| {
+            (self.numerator as f64 / self.denominator as f64)
+                .partial_cmp(&(other.numerator as f64 / other.denominator as f64))
+                .unwrap_or(Ordering::Equal)
+        })
     }
 }
 
@@ -214,7 +206,7 @@ impl ArithNCD {
             .expect("arithmetic-coding input symbol missing from probability table")
     }
 
-    fn interval(&self, data: &PreparedSequence) -> (Rational, Rational) {
+    fn try_interval(&self, data: &PreparedSequence) -> Option<(Rational, Rational)> {
         let probabilities = self.make_probs(std::slice::from_ref(data));
         let mut symbols = data.clone();
         if let Some(terminator) = self.terminator {
@@ -227,35 +219,68 @@ impl ArithNCD {
         for element in symbols {
             let (probability_start, probability_width) =
                 Self::probability_for(&probabilities, &element);
-            start = start.add(probability_start.multiply(width));
-            width = width.multiply(probability_width);
+            start = start.try_add(probability_start.try_multiply(width)?)?;
+            width = width.try_multiply(probability_width)?;
         }
-        (start, start.add(width))
+        Some((start, start.try_add(width)?))
     }
 
-    /// Compress one prepared sequence into the exact representative fraction.
-    pub fn compress(&self, data: &PreparedSequence) -> Rational {
-        let (start, end) = self.interval(data);
+    fn try_compress(&self, data: &PreparedSequence) -> Option<Rational> {
+        let (start, end) = self.try_interval(data)?;
         let mut output = Rational::zero();
         let mut output_denominator = 1u128;
 
-        while !(start <= output && output < end) {
-            let numerator = start
-                .numerator
-                .checked_mul(output_denominator)
-                .expect("arithmetic-coding output overflow")
-                / start.denominator
-                + 1;
+        loop {
+            let in_range = start.try_cmp(&output)? != Ordering::Greater
+                && output.try_cmp(&end)? == Ordering::Less;
+            if in_range {
+                return Some(output);
+            }
+
+            let numerator =
+                start.numerator.checked_mul(output_denominator)? / start.denominator + 1;
             output = Rational::new(numerator, output_denominator);
-            output_denominator = output_denominator
-                .checked_mul(2)
-                .expect("arithmetic-coding output denominator overflow");
+            output_denominator = output_denominator.checked_mul(2)?;
         }
-        output
+    }
+
+    fn approximate_size(&self, data: &PreparedSequence) -> u128 {
+        let counts = self.counts(std::slice::from_ref(data));
+        let total: f64 = counts.iter().map(|(_, count)| *count as f64).sum();
+        if total == 0.0 {
+            return 0;
+        }
+        let base = self.base.max(2) as f64;
+        let code_length: f64 = counts
+            .iter()
+            .map(|(_, count)| {
+                let probability = *count as f64 / total;
+                *count as f64 * -probability.log(base)
+            })
+            .sum();
+        code_length.ceil().max(1.0) as u128
+    }
+
+    /// Compress one prepared sequence into the exact representative fraction
+    /// when it fits in `u128`, with a finite approximation for long inputs.
+    pub fn compress(&self, data: &PreparedSequence) -> Rational {
+        if let Some(output) = self.try_compress(data) {
+            return output;
+        }
+
+        let size = self.approximate_size(data);
+        let base = self.base.max(2) as u128;
+        let numerator = (0..size)
+            .try_fold(1u128, |value, _| value.checked_mul(base))
+            .unwrap_or(u128::MAX);
+        Rational::new(numerator, 1)
     }
 
     fn size(&self, data: &PreparedSequence) -> u128 {
-        let numerator = self.compress(data).numerator;
+        let Some(compressed) = self.try_compress(data) else {
+            return self.approximate_size(data);
+        };
+        let numerator = compressed.numerator;
         if numerator == 0 {
             return 0;
         }

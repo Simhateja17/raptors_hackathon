@@ -1,0 +1,174 @@
+{
+  "algorithm": "tanimoto",
+  "cases": [
+    {
+      "id": "empty-equal",
+      "category": "empty",
+      "inputs": [
+        "",
+        ""
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "equal",
+      "category": "equal",
+      "inputs": [
+        "test",
+        "test"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "different-0",
+      "category": "different",
+      "inputs": [
+        "test",
+        "text"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.736965594166206,
+        "similarity": -0.7369655941662062,
+        "normalized_distance": 1.736965594166206,
+        "normalized_similarity": -0.7369655941662061,
+        "maximum": 1.0
+      },
+      "note": "log2 of tests/original/test_token/test_jaccard.py::test_distance cases"
+    },
+    {
+      "id": "different-1",
+      "category": "different",
+      "inputs": [
+        "nelson",
+        "neilsen"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.6780719051126378,
+        "similarity": -0.6780719051126377,
+        "normalized_distance": 1.6780719051126378,
+        "normalized_similarity": -0.6780719051126378,
+        "maximum": 1.0
+      },
+      "note": "log2 of tests/original/test_token/test_jaccard.py::test_distance cases"
+    },
+    {
+      "id": "different-2",
+      "category": "different",
+      "inputs": [
+        "decide",
+        "resize"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 2.584962500721156,
+        "similarity": -1.5849625007211563,
+        "normalized_distance": 2.584962500721156,
+        "normalized_similarity": -1.584962500721156,
+        "maximum": 1.0
+      },
+      "note": "log2 of tests/original/test_token/test_jaccard.py::test_distance cases"
+    },
+    {
+      "id": "unicode-equal",
+      "category": "unicode",
+      "inputs": [
+        "café",
+        "café"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "multi-sequence-3",
+      "category": "multi_sequence",
+      "inputs": [
+        "abc",
+        "abd",
+        "abe"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 2.321928094887362,
+        "similarity": -1.3219280948873622,
+        "normalized_distance": 2.321928094887362,
+        "normalized_similarity": -1.3219280948873622,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "qvalue-ngram2",
+      "category": "qvalue",
+      "inputs": [
+        "test",
+        "text"
+      ],
+      "options": {
+        "qval": 2
+      },
+      "expected": {
+        "distance": 3.321928094887362,
+        "similarity": -2.321928094887362,
+        "normalized_distance": 3.321928094887362,
+        "normalized_similarity": -2.321928094887362,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "options-as-set",
+      "category": "options",
+      "inputs": [
+        "aaaa",
+        "aa"
+      ],
+      "options": {
+        "as_set": true
+      },
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1.0
+      }
+    },
+    {
+      "id": "edge-disjoint-negative-infinity",
+      "category": "edge_case",
+      "inputs": [
+        "abc",
+        "xyz"
+      ],
+      "options": {},
+      "expected": {
+        "distance": Infinity,
+        "similarity": -Infinity,
+        "normalized_distance": Infinity,
+        "normalized_similarity": -Infinity,
+        "maximum": 1.0
+      },
+      "note": "disjoint sequences give -Infinity similarity/call"
+    }
+  ]
+}

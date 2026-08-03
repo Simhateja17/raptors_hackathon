@@ -1,22 +1,12 @@
 from __future__ import annotations
 
-# built-in
-import codecs
 import math
 from collections import Counter
 from fractions import Fraction
-from itertools import groupby, permutations
-from typing import Any, Sequence, TypeVar
 
 # app
+from .. import _rust_adapter as _rust
 from .base import Base as _Base
-
-
-try:
-    # built-in
-    import lzma
-except ImportError:
-    lzma = None  # type: ignore[assignment]
 
 
 __all__ = [
@@ -26,7 +16,6 @@ __all__ = [
     'bz2_ncd', 'lzma_ncd', 'arith_ncd', 'rle_ncd', 'bwtrle_ncd', 'zlib_ncd',
     'sqrt_ncd', 'entropy_ncd',
 ]
-T = TypeVar('T')
 
 
 class _NCDBase(_Base):
@@ -36,6 +25,7 @@ class _NCDBase(_Base):
     https://en.wikipedia.org/wiki/Normalized_compression_distance#Normalized_compression_distance
     """
     qval = 1
+    _rust_name = ''
 
     def __init__(self, qval: int = 1) -> None:
         self.qval = qval
@@ -43,44 +33,14 @@ class _NCDBase(_Base):
     def maximum(self, *sequences) -> int:
         return 1
 
-    def _get_size(self, data: str) -> float:
-        return len(self._compress(data))
-
-    def _compress(self, data: str) -> Any:
-        raise NotImplementedError
-
     def __call__(self, *sequences) -> float:
-        if not sequences:
-            return 0
-        sequences = self._get_sequences(*sequences)
-
-        concat_len = float('Inf')
-        empty = type(sequences[0])()
-        for mutation in permutations(sequences):
-            if isinstance(empty, (str, bytes)):
-                data = empty.join(mutation)
-            else:
-                data = sum(mutation, empty)
-            concat_len = min(concat_len, self._get_size(data))  # type: ignore[arg-type]
-
-        compressed_lens = [self._get_size(s) for s in sequences]
-        max_len = max(compressed_lens)
-        if max_len == 0:
-            return 0
-        return (concat_len - min(compressed_lens) * (len(sequences) - 1)) / max_len
+        return _rust.compute(self._rust_name, self.__dict__, 'call', *sequences)
 
 
 class _BinaryNCDBase(_NCDBase):
 
     def __init__(self) -> None:
         pass
-
-    def __call__(self, *sequences) -> float:
-        if not sequences:
-            return 0
-        if isinstance(sequences[0], str):
-            sequences = tuple(s.encode('utf-8') for s in sequences)
-        return super().__call__(*sequences)
 
 
 class ArithNCD(_NCDBase):
@@ -90,38 +50,33 @@ class ArithNCD(_NCDBase):
     http://www.drdobbs.com/cpp/data-compression-with-arithmetic-encodin/240169251
     https://en.wikipedia.org/wiki/Arithmetic_coding
     """
+    _rust_name = 'arith_ncd'
 
     def __init__(self, base: int = 2, terminator: str | None = None, qval: int = 1) -> None:
         self.base = base
         self.terminator = terminator
         self.qval = qval
 
-    def _make_probs(self, *sequences) -> dict[str, tuple[Fraction, Fraction]]:
-        """
-        https://github.com/gw-c/arith/blob/master/arith.py
-        """
+    # These private helpers remain part of the original compatibility surface.
+    # Public calls still go through the Rust adapter below.
+    def _make_probs(self, *sequences):
         sequences = self._get_counters(*sequences)
         counts = self._sum_counters(*sequences)
         if self.terminator is not None:
             counts[self.terminator] = 1
         total_letters = sum(counts.values())
 
-        prob_pairs = {}
+        probabilities = {}
         cumulative_count = 0
         for char, current_count in counts.most_common():
-            prob_pairs[char] = (
+            probabilities[char] = (
                 Fraction(cumulative_count, total_letters),
                 Fraction(current_count, total_letters),
             )
             cumulative_count += current_count
-        assert cumulative_count == total_letters
-        return prob_pairs
+        return probabilities
 
-    def _get_range(
-        self,
-        data: str,
-        probs: dict[str, tuple[Fraction, Fraction]],
-    ) -> tuple[Fraction, Fraction]:
+    def _get_range(self, data, probs):
         if self.terminator is not None:
             if self.terminator in data:
                 data = data.replace(self.terminator, '')
@@ -130,14 +85,14 @@ class ArithNCD(_NCDBase):
         start = Fraction(0, 1)
         width = Fraction(1, 1)
         for char in data:
-            prob_start, prob_width = probs[char]
-            start += prob_start * width
-            width *= prob_width
+            probability_start, probability_width = probs[char]
+            start += probability_start * width
+            width *= probability_width
         return start, start + width
 
-    def _compress(self, data: str) -> Fraction:
-        probs = self._make_probs(data)
-        start, end = self._get_range(data=data, probs=probs)
+    def _compress(self, data):
+        probabilities = self._make_probs(data)
+        start, end = self._get_range(data=data, probs=probabilities)
         output_fraction = Fraction(0, 1)
         output_denominator = 1
         while not (start <= output_fraction < end):
@@ -146,7 +101,7 @@ class ArithNCD(_NCDBase):
             output_denominator *= 2
         return output_fraction
 
-    def _get_size(self, data: str) -> int:
+    def _get_size(self, data):
         numerator = self._compress(data).numerator
         if numerator == 0:
             return 0
@@ -158,18 +113,7 @@ class RLENCD(_NCDBase):
 
     https://en.wikipedia.org/wiki/Run-length_encoding
     """
-
-    def _compress(self, data: Sequence) -> str:
-        new_data = []
-        for k, g in groupby(data):
-            n = len(list(g))
-            if n > 2:
-                new_data.append(str(n) + k)
-            elif n == 1:
-                new_data.append(k)
-            else:
-                new_data.append(2 * k)
-        return ''.join(new_data)
+    _rust_name = 'rle_ncd'
 
 
 class BWTRLENCD(RLENCD):
@@ -177,19 +121,10 @@ class BWTRLENCD(RLENCD):
     https://en.wikipedia.org/wiki/Burrows%E2%80%93Wheeler_transform
     https://en.wikipedia.org/wiki/Run-length_encoding
     """
+    _rust_name = 'bwtrle_ncd'
 
     def __init__(self, terminator: str = '\0') -> None:
-        self.terminator: Any = terminator
-
-    def _compress(self, data: str) -> str:
-        if not data:
-            data = self.terminator
-        elif self.terminator not in data:
-            data += self.terminator
-            modified = sorted(data[i:] + data[:i] for i in range(len(data)))
-            empty = type(data)()
-            data = empty.join(subdata[-1] for subdata in modified)
-        return super()._compress(data)
+        self.terminator = terminator
 
 
 # -- NORMAL COMPRESSORS -- #
@@ -201,14 +136,15 @@ class SqrtNCD(_NCDBase):
     Size of compressed data equals to sum of square roots of counts of every
     element in the input sequence.
     """
+    _rust_name = 'sqrt_ncd'
 
     def __init__(self, qval: int = 1) -> None:
         self.qval = qval
 
-    def _compress(self, data: Sequence[T]) -> dict[T, float]:
+    def _compress(self, data):
         return {element: math.sqrt(count) for element, count in Counter(data).items()}
 
-    def _get_size(self, data: Sequence) -> float:
+    def _get_size(self, data):
         return sum(self._compress(data).values())
 
 
@@ -220,27 +156,23 @@ class EntropyNCD(_NCDBase):
     https://en.wikipedia.org/wiki/Entropy_(information_theory)
     https://en.wikipedia.org/wiki/Entropy_encoding
     """
+    _rust_name = 'entropy_ncd'
 
     def __init__(self, qval: int = 1, coef: int = 1, base: int = 2) -> None:
         self.qval = qval
         self.coef = coef
         self.base = base
 
-    def _compress(self, data: Sequence) -> float:
+    def _compress(self, data):
         total_count = len(data)
         entropy = 0.0
         for element_count in Counter(data).values():
-            p = element_count / total_count
-            entropy -= p * math.log(p, self.base)
+            probability = element_count / total_count
+            entropy -= probability * math.log(probability, self.base)
         assert entropy >= 0
         return entropy
 
-        # # redundancy:
-        # unique_count = len(counter)
-        # absolute_entropy = math.log(unique_count, 2) / unique_count
-        # return absolute_entropy - entropy / unique_count
-
-    def _get_size(self, data: Sequence) -> float:
+    def _get_size(self, data):
         return self.coef + self._compress(data)
 
 
@@ -251,29 +183,21 @@ class BZ2NCD(_BinaryNCDBase):
     """
     https://en.wikipedia.org/wiki/Bzip2
     """
-
-    def _compress(self, data: str | bytes) -> bytes:
-        return codecs.encode(data, 'bz2_codec')[15:]
+    _rust_name = 'bz2_ncd'
 
 
 class LZMANCD(_BinaryNCDBase):
     """
     https://en.wikipedia.org/wiki/LZMA
     """
-
-    def _compress(self, data: bytes) -> bytes:
-        if not lzma:
-            raise ImportError('Please, install the PylibLZMA module')
-        return lzma.compress(data)[14:]
+    _rust_name = 'lzma_ncd'
 
 
 class ZLIBNCD(_BinaryNCDBase):
     """
     https://en.wikipedia.org/wiki/Zlib
     """
-
-    def _compress(self, data: str | bytes) -> bytes:
-        return codecs.encode(data, 'zlib_codec')[2:]
+    _rust_name = 'zlib_ncd'
 
 
 arith_ncd = ArithNCD()

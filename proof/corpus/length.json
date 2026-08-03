@@ -1,0 +1,178 @@
+{
+  "algorithm": "length",
+  "cases": [
+    {
+      "id": "empty-0",
+      "category": "empty",
+      "inputs": [
+        "",
+        ""
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 0.0,
+        "normalized_distance": 0,
+        "normalized_similarity": 1,
+        "maximum": 0
+      }
+    },
+    {
+      "id": "empty-1",
+      "category": "empty",
+      "inputs": [
+        "a",
+        ""
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1
+      }
+    },
+    {
+      "id": "empty-2",
+      "category": "empty",
+      "inputs": [
+        "",
+        "a"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 0.0,
+        "normalized_distance": 1.0,
+        "normalized_similarity": 0.0,
+        "maximum": 1
+      }
+    },
+    {
+      "id": "equal-3",
+      "category": "equal",
+      "inputs": [
+        "abc",
+        "xyz"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 3.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 3
+      }
+    },
+    {
+      "id": "different-4",
+      "category": "different",
+      "inputs": [
+        "abc",
+        "ab"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 2.0,
+        "normalized_distance": 0.3333333333333333,
+        "normalized_similarity": 0.6666666666666667,
+        "maximum": 3
+      }
+    },
+    {
+      "id": "different-5",
+      "category": "different",
+      "inputs": [
+        "hello world",
+        "hi"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 9.0,
+        "similarity": 2.0,
+        "normalized_distance": 0.8181818181818182,
+        "normalized_similarity": 0.18181818181818177,
+        "maximum": 11
+      }
+    },
+    {
+      "id": "unicode",
+      "category": "unicode",
+      "inputs": [
+        "café",
+        "cafe"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 0.0,
+        "similarity": 4.0,
+        "normalized_distance": 0.0,
+        "normalized_similarity": 1.0,
+        "maximum": 4
+      },
+      "note": "'é' is one code point; length is measured in Unicode scalar values"
+    },
+    {
+      "id": "multi-sequence-3",
+      "category": "multi_sequence",
+      "inputs": [
+        "ab",
+        "abc",
+        "abcd"
+      ],
+      "options": {},
+      "expected": {
+        "distance": 2.0,
+        "similarity": 2.0,
+        "normalized_distance": 0.5,
+        "normalized_similarity": 0.5,
+        "maximum": 4
+      }
+    },
+    {
+      "id": "integers",
+      "category": "integers",
+      "inputs": [
+        [
+          1000,
+          2,
+          3
+        ],
+        [
+          1000,
+          2
+        ]
+      ],
+      "options": {},
+      "expected": {
+        "distance": 1.0,
+        "similarity": 2.0,
+        "normalized_distance": 0.3333333333333333,
+        "normalized_similarity": 0.6666666666666667,
+        "maximum": 3
+      }
+    },
+    {
+      "id": "bytes",
+      "category": "bytes",
+      "inputs": [
+        {
+          "__bytes_hex__": "616263"
+        },
+        {
+          "__bytes_hex__": "61"
+        }
+      ],
+      "options": {},
+      "expected": {
+        "distance": 2.0,
+        "similarity": 1.0,
+        "normalized_distance": 0.6666666666666666,
+        "normalized_similarity": 0.33333333333333337,
+        "maximum": 3
+      }
+    }
+  ]
+}
