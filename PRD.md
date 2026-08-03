@@ -735,11 +735,11 @@ These tasks are intentionally sequential after the parallel packets.
   - Dependency: INT-04 through INT-07.
   - Output: complete submission documentation.
   - Acceptance: a new teammate can run the build, tests, proof, benchmark, and five-minute demo from the README.
-- [ ] **INT-09 — all — clean-checkout rehearsal**
+- [x] **INT-09 — all — clean-checkout rehearsal**
   - Dependency: INT-08.
   - Output: final command log and clean working tree review.
   - Acceptance: one documented command succeeds from a fresh checkout and the original-test manifest still passes.
-  - Evidence: `make verify` succeeds in the current working tree; the final clean-checkout rehearsal remains pending until these changes are committed and pushed.
+  - Evidence: `proof/clean-checkout.md` records a fresh archive of commit `2cb7fdb` passing `make verify`.
 
 ### Dependency map
 
