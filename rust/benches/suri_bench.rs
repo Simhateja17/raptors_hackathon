@@ -26,7 +26,9 @@ use textdistance_port::algorithms::simple::postfix::Postfix;
 use textdistance_port::algorithms::simple::prefix::Prefix;
 use textdistance_port::algorithms::token::overlap::Overlap;
 use textdistance_port::algorithms::token::tanimoto::Tanimoto;
-use textdistance_port::{prepare_sequences, InputSequence, OutputAlgorithm, PreparedSequence, QValue};
+use textdistance_port::{
+    prepare_sequences, InputSequence, OutputAlgorithm, PreparedSequence, QValue,
+};
 
 /// Counting allocator: gives byte/allocation-count evidence for the "memory
 /// usage (if available)" requirement without adding a profiling dependency.
@@ -66,8 +68,12 @@ fn short_cases() -> Vec<(String, String)> {
 /// differences (e.g. Ratcliff-Obershelp's <200 vs >=200 length branch) that
 /// the short cases are too small to reveal.
 fn long_case() -> (String, String) {
-    let left: String = (0..2000).map(|i| char::from(b'a' + (i % 23) as u8)).collect();
-    let right: String = (0..2000).map(|i| char::from(b'a' + ((i + 5) % 23) as u8)).collect();
+    let left: String = (0..2000)
+        .map(|i| char::from(b'a' + (i % 23) as u8))
+        .collect();
+    let right: String = (0..2000)
+        .map(|i| char::from(b'a' + ((i + 5) % 23) as u8))
+        .collect();
     (left, right)
 }
 
@@ -89,8 +95,6 @@ fn prepare(pairs: &[(String, String)]) -> Vec<Vec<PreparedSequence>> {
 
 struct AlgoResult {
     algorithm: String,
-    runs: u32,
-    calls_per_run: usize,
     total_calls: u64,
     total_seconds: f64,
     seconds_per_call: f64,
@@ -100,7 +104,11 @@ struct AlgoResult {
     long_case_seconds: f64,
 }
 
-fn bench_short<A: OutputAlgorithm>(name: &str, algo: &A, cases: &[Vec<PreparedSequence>]) -> AlgoResult {
+fn bench_short<A: OutputAlgorithm>(
+    name: &str,
+    algo: &A,
+    cases: &[Vec<PreparedSequence>],
+) -> AlgoResult {
     // Warm up (page faults, branch predictor, first allocations) before the
     // timed and the allocation-counted sections.
     for case in cases {
@@ -133,8 +141,6 @@ fn bench_short<A: OutputAlgorithm>(name: &str, algo: &A, cases: &[Vec<PreparedSe
 
     AlgoResult {
         algorithm: name.to_string(),
-        runs: RUNS,
-        calls_per_run: cases.len(),
         total_calls,
         total_seconds,
         seconds_per_call,

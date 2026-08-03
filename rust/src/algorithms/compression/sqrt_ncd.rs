@@ -38,7 +38,8 @@ impl Algorithm for SqrtNcd {
         // Source takes `min` over all permutations' concatenated size, but
         // for a purely count-based estimator like this one, concatenation
         // order can never change the resulting element multiset, so every
-        // permutation yields an identical size — enumerating permutations
+        // permutat
+        // ion yields an identical size — enumerating permutations
         // would be redundant work.
         let concatenated: Vec<&Element> = sequences.iter().flatten().collect();
         let mut counts: HashMap<&Element, usize> = HashMap::new();

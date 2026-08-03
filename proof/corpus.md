@@ -111,7 +111,7 @@ python proof/verify_corpus.py
 ```
 
 This imports `textdistance` (Rust-backed since INT-01: every call in
-`textdistance/algorithms/**` delegates to the compiled `textdistance_rust`
+`textdistance/algorithms/**` delegates to the compiled `textdistance_port`
 PyO3 extension) and replays all 114 cases. It does **not** import, shell out
 to, or otherwise depend on the original pure-Python algorithm implementations
 at any point — satisfying INT-04's acceptance criterion. Current result:
@@ -123,26 +123,16 @@ at any point — satisfying INT-04's acceptance criterion. Current result:
 Exit code is `0` on full pass, `1` otherwise, so it is suitable for wiring
 into a future `make verify` target (INT-08).
 
-## Known gaps found while building this corpus
+## Adapter regressions checked during corpus integration
 
-Building real, cross-checked fixtures (rather than trusting whatever the
-current adapter happened to output) surfaced two pre-existing bugs in the
-Python/Rust adapter boundary (`python_adapter/src/lib.rs`, built for SIM-10).
-Both are **adapter/wiring bugs, not algorithm bugs** — no Rust algorithm file
-was touched to work around them, per this task's "do not change any algorithm
-implementation" constraint. Full detail: [`known-issues.md`](known-issues.md).
+Cross-checking the frozen values surfaced two adapter mismatches. Both are
+fixed in the current working tree and are documented in
+[`known-issues.md`](known-issues.md):
 
-1. `Prefix`/`Postfix` with non-default `qval` (`None` or `>1`) produce a wrong
-   or crashing `call()` result, because the adapter reconstructs sequence
-   output using the *raw* input's Python type instead of the *prepared*
-   sequence's element type.
-2. A Python `list` of small integers (all `0`-`255`) can be silently
-   misclassified as `bytes` during input conversion, because the adapter
-   tries `Vec<u8>` extraction before checking for an actual `bytes`/
-   `bytearray` object.
+1. `Prefix`/`Postfix` output now preserves Python list/tuple shape for word and
+   n-gram q-values.
+2. Ordinary `list[int]` input is kept as integers; only actual Python `bytes`
+   objects are treated as byte sequences.
 
-The corpus routes around both (see the `note` fields on the affected cases:
-`prefix.json`'s `qvalue-ngram2-similarity-only`, and the `integers` cases
-across `prefix.json`/`postfix.json`, which deliberately use values `>255`).
-Fixing either is out of scope for INT-04 and is left for a future INT-03-style
-fix commit against `python_adapter/**`.
+The verifier result above is therefore a live check of the corrected adapter,
+not a fixture workaround for either behavior.

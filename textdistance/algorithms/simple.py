@@ -96,10 +96,6 @@ class Matrix(_BaseSimilarity):
         return _rust.compute('matrix', self.__dict__, 'maximum', *sequences)
 
     def __call__(self, *sequences: Sequence) -> int:
-        if self.mat:
-            raise NotImplementedError(
-                'Matrix with a custom mat= lookup table is not supported by the Rust-backed port',
-            )
         return _rust.compute('matrix', self.__dict__, 'call', *sequences)
 
 

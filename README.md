@@ -6,6 +6,36 @@
 
 **TextDistance** -- python library for comparing distance between two or more sequences by many algorithms.
 
+## Rust-port verification
+
+This checkout also contains the Track D Python-to-Rust port. The exported
+algorithm classes keep the original Python API, while supported calls execute
+in the compiled Rust core through the `textdistance_port` PyO3 adapter. Build
+the extension before importing the package:
+
+```bash
+make build
+make test       # native tests plus the unchanged non-external original suite
+make verify     # manifest, native tests, corpus, fuzz smoke, original suite
+make benchmark  # Rust/native and frozen-Python benchmark results
+make demo       # short deterministic walkthrough
+```
+
+The Makefile prefers an available project interpreter under `.venvs/` and
+pins PyO3 to that same interpreter via `PYO3_PYTHON=$(PYTHON)`. You can choose
+another one explicitly, for example `make PYTHON=/path/to/python verify`. If
+Python was upgraded, remove stale build artifacts once with `cargo clean` and
+rerun `make build`.
+
+The original test snapshot is under `tests/original/` and is hash-checked by
+`make verify`; no file in that snapshot is modified. See
+[`docs/DECISIONS.md`](docs/DECISIONS.md) for the FFI and compatibility choices,
+[`docs/DEMO.md`](docs/DEMO.md) for the five-minute path, and
+[`bench/report.md`](bench/report.md) for current results. The optional
+third-party comparison command is `make test-external`; its current RapidFuzz
+environment has three large-integer sequence mismatches documented in the
+decisions file.
+
 Features:
 
 - 30+ algorithms

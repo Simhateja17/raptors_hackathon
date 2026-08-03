@@ -237,10 +237,6 @@ class NeedlemanWunsch(_BaseSimilarity):
         return (self.similarity(*sequences) - minimum) / (maximum * 2)
 
     def __call__(self, s1: Sequence[T], s2: Sequence[T]) -> float:
-        if self.sim_func is not self._ident:
-            raise NotImplementedError(
-                'NeedlemanWunsch with a custom sim_func is not supported by the Rust-backed port',
-            )
         return _rust.compute('needleman_wunsch', self.__dict__, 'call', s1, s2)
 
 
@@ -272,10 +268,6 @@ class SmithWaterman(_BaseSimilarity):
         return _rust.compute('smith_waterman', self.__dict__, 'maximum', *sequences)
 
     def __call__(self, s1: Sequence[T], s2: Sequence[T]) -> float:
-        if self.sim_func is not self._ident:
-            raise NotImplementedError(
-                'SmithWaterman with a custom sim_func is not supported by the Rust-backed port',
-            )
         return _rust.compute('smith_waterman', self.__dict__, 'call', s1, s2)
 
 
@@ -310,10 +302,6 @@ class Gotoh(NeedlemanWunsch):
         return _rust.compute('gotoh', self.__dict__, 'maximum', *sequences)
 
     def __call__(self, s1: Sequence[T], s2: Sequence[T]) -> float:
-        if self.sim_func is not self._ident:
-            raise NotImplementedError(
-                'Gotoh with a custom sim_func is not supported by the Rust-backed port',
-            )
         return _rust.compute('gotoh', self.__dict__, 'call', s1, s2)
 
 

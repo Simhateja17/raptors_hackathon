@@ -630,9 +630,10 @@ the exact source/test paths shown in the ownership section.
 - [x] **SIM-09 — LCS sequence** — `sequence/lcsseq.rs` + native test.
   - Dependency: G1-09 because the source call returns a sequence.
   - Evidence: `cargo test --test algorithm_lcsseq` (3 passed); original two-/multi-sequence outputs, tie behavior, empty, Unicode, q-gram, integer, and output-conversion cases covered.
-- [ ] **SIM-10 — FFI contract implementation** — `python_adapter/**`.
+- [x] **SIM-10 — FFI contract implementation** — `python_adapter/**`.
   - Dependency: at least SIM-01, POO-01, and one representative algorithm from Manasa and Suri.
   - Acceptance: the adapter invokes Rust only and exposes the common methods required by the original tests.
+  - Evidence: `cargo test --features python` exercises the PyO3 adapter with text, bytes, integer sequences, sequence output, common methods, and callback rejection; `PYO3_BUILD_EXTENSION_MODULE=1 cargo build --features python-extension` plus a Python import probe passed.
 
 #### Manasa’s packets
 
@@ -701,7 +702,7 @@ the exact source/test paths shown in the ownership section.
 
 These tasks are intentionally sequential after the parallel packets.
 
-- [ ] **INT-01 — Suri — wire the Python package path**
+- [x] **INT-01 — Suri — wire the Python package path**
   - Dependency: G0-05 and SIM-10.
   - Output: thin `textdistance/**` package path that loads the Rust adapter and does not contain the original implementation.
   - Acceptance: an import probe proves the Rust-backed package is loaded.
@@ -709,15 +710,16 @@ These tasks are intentionally sequential after the parallel packets.
   - Dependency: INT-01 and all algorithm packets.
   - Output: test report for `tests/original/`.
   - Acceptance: all original tests pass, with external tests run when their documented dependencies are installed.
-- [ ] **INT-03 — all owners — fix only owned failures**
+  - Evidence: `make verify` passes 400 non-external tests; the full run reaches 427/430 because RapidFuzz 3.14.5 disagrees with the frozen implementation on three large-integer list cases. See `docs/DECISIONS.md`.
+- [x] **INT-03 — all owners — fix only owned failures**
   - Dependency: INT-02 failure report.
   - Output: one fix commit per owner/algorithm packet.
   - Acceptance: no integration fix edits another owner’s implementation file.
-- [ ] **INT-04 — Suri — freeze differential fixtures**
+- [x] **INT-04 — Suri — freeze differential fixtures**
   - Dependency: INT-02.
   - Output: fixed corpus under `proof/` covering Unicode, empty/equal, q-values, multi-sequence, integers, bytes, and options.
   - Acceptance: the corpus can be rerun without the original Python implementation as a runtime dependency.
-- [ ] **INT-05 — Suri — run fuzz smoke test**
+- [x] **INT-05 — Suri — run fuzz smoke test**
   - Dependency: INT-04.
   - Output: seed, duration, and result under `proof/`.
   - Acceptance: zero crashes and zero unexplained mismatches.
@@ -725,19 +727,19 @@ These tasks are intentionally sequential after the parallel packets.
   - Dependency: INT-02.
   - Output: reproducible benchmark report under `bench/`.
   - Acceptance: baseline and Rust commands, inputs, machine details, and results are recorded.
-  - Evidence: `bench/report.md`, `bench/results/rust_bench.json`, `bench/results/python_bench.json`.
-- [ ] **INT-07 — Simha Teja — final core/FFI review**
+- [x] **INT-07 — Simha Teja — final core/FFI review**
   - Dependency: INT-03.
   - Output: review commit or signed-off review note.
   - Acceptance: no Python fallback, no unsafe core logic, and no unexplained public API drift.
-- [ ] **INT-08 — Suri — README/DECISIONS/DEMO finalization**
+- [x] **INT-08 — Suri — README/DECISIONS/DEMO finalization**
   - Dependency: INT-04 through INT-07.
   - Output: complete submission documentation.
   - Acceptance: a new teammate can run the build, tests, proof, benchmark, and five-minute demo from the README.
-- [ ] **INT-09 — all — clean-checkout rehearsal**
+- [x] **INT-09 — all — clean-checkout rehearsal**
   - Dependency: INT-08.
   - Output: final command log and clean working tree review.
   - Acceptance: one documented command succeeds from a fresh checkout and the original-test manifest still passes.
+  - Evidence: `proof/clean-checkout.md` records a fresh archive of commit `2cb7fdb` passing `make verify`.
 
 ### Dependency map
 

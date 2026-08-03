@@ -1,650 +1,1143 @@
-//! SIM-10: thin Python/PyO3 compatibility adapter.
+//! PyO3 compatibility boundary for the Rust TextDistance implementation.
 //!
-//! This crate is the *only* FFI boundary between the Python package and the
-//! Rust core (`textdistance-port`). It performs input conversion, algorithm
-//! construction from a Python-supplied config, and output conversion. All
-//! algorithm logic itself lives in `textdistance-port`; this file must not
-//! reimplement any of it.
-//!
-//! Unsupported arbitrary Python objects (custom comparator callables, custom
-//! substitution matrices, etc.) are rejected by the Python-side wrapper
-//! before reaching this boundary; anything that does reach here and cannot
-//! be represented in the shared `Element`/`InputSequence` model fails with a
-//! clear `ValueError`/`TypeError` rather than being silently coerced.
+//! The adapter is intentionally thin: it validates the supported Python input
+//! domain, prepares inputs through the shared Rust core, dispatches to the
+//! existing algorithm packets, and exposes the common source-level methods.
+//! It never imports or calls the original Python implementation.
 
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::collections::BTreeMap;
 
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyBytes, PyDict, PyList, PyString, PyTuple};
+use pyo3::types::{PyAny, PyBool, PyBytes, PyDict, PyFloat, PyInt, PyList, PyString, PyTuple};
 
-use textdistance_port::algorithms::{
-    arith_ncd::ArithNCD, bag::Bag, bwtrle_ncd::BWTRLENCD, bz2_ncd::Bz2Ncd,
-    cosine::Cosine, damerau_levenshtein::DamerauLevenshtein, editex::Editex,
-    entropy_ncd::EntropyNcd, gotoh::Gotoh, hamming::Hamming, identity::Identity,
-    jaccard::Jaccard, jaro::Jaro, jaro_winkler::JaroWinkler, lcsseq::LCSSeq, lcsstr::LCSStr,
-    length::Length, levenshtein::Levenshtein, lzma_ncd::LzmaNcd, matrix::Matrix, mlipns::MLIPNS,
-    monge_elkan::MongeElkan, mra::MRA, needleman_wunsch::NeedlemanWunsch, overlap::Overlap,
-    postfix::Postfix, prefix::Prefix, ratcliff_obershelp::RatcliffObershelp, rle_ncd::RleNcd,
-    smith_waterman::SmithWaterman, sorensen::Sorensen, sqrt_ncd::SqrtNcd, strcmp95::StrCmp95,
-    tanimoto::Tanimoto, tversky::Tversky, zlib_ncd::ZlibNcd,
+use crate::algorithms::{
+    arith_ncd::ArithNCD,
+    bwtrle_ncd::BWTRLENCD,
+    bz2_ncd::Bz2Ncd,
+    cosine::Cosine,
+    damerau_levenshtein::DamerauLevenshtein,
+    editex::Editex,
+    entropy_ncd::EntropyNcd,
+    gotoh::Gotoh,
+    hamming::Hamming,
+    identity::Identity,
+    jaccard::Jaccard,
+    jaro::Jaro,
+    jaro_winkler::JaroWinkler,
+    lcsseq::LCSSeq,
+    lcsstr::LCSStr,
+    length::Length,
+    levenshtein::Levenshtein,
+    lzma_ncd::LzmaNcd,
+    matrix::Matrix,
+    mlipns::MLIPNS,
+    monge_elkan::MongeElkan,
+    mra::MRA,
+    needleman_wunsch::{MatrixScorer, NeedlemanWunsch},
+    overlap::Overlap,
+    postfix::Postfix,
+    prefix::Prefix,
+    ratcliff_obershelp::RatcliffObershelp,
+    rle_ncd::RleNcd,
+    smith_waterman::SmithWaterman,
+    sorensen::Sorensen,
+    sqrt_ncd::SqrtNcd,
+    strcmp95::StrCmp95,
+    tanimoto::Tanimoto,
+    tversky::Tversky,
+    zlib_ncd::ZlibNcd,
 };
-use textdistance_port::{
-    normalize_distance, normalize_similarity, output_distance, output_similarity, Algorithm,
-    AlgorithmOutput, Element, InputSequence, OutputAlgorithm, PreparedSequence, QValue,
-    ScoreMode, Sequence,
+use crate::core::{
+    output_distance, output_similarity, prepare_sequences, Algorithm, AlgorithmError,
+    AlgorithmOutput, Element, InputSequence, OutputAlgorithm, PreparedSequence, QValue, ScoreMode,
+    Sequence,
 };
 
-// ---------------------------------------------------------------------
-// Python <-> Rust sequence conversion
-// ---------------------------------------------------------------------
-
-/// The Python container shape an input arrived in, so the output of a
-/// sequence-producing algorithm (LCSSeq/LCSStr/Prefix/Postfix) can be
-/// reconstructed as the same kind of Python value the source library
-/// would have returned (`str`, `bytes`, or `list`).
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Shape {
-    Str,
-    Bytes,
-    List,
-    Tuple,
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum AlgorithmKind {
+    Levenshtein,
+    DamerauLevenshtein,
+    NeedlemanWunsch,
+    SmithWaterman,
+    Gotoh,
+    StrCmp95,
+    Mlipns,
+    Jaro,
+    JaroWinkler,
+    Hamming,
+    Jaccard,
+    Sorensen,
+    Tversky,
+    Cosine,
+    MongeElkan,
+    Bag,
+    Overlap,
+    Tanimoto,
+    LCSSeq,
+    LCSStr,
+    RatcliffObershelp,
+    ArithNcd,
+    RleNcd,
+    BwtrleNcd,
+    SqrtNcd,
+    EntropyNcd,
+    Bz2Ncd,
+    LzmaNcd,
+    ZlibNcd,
+    Editex,
+    Mra,
+    Prefix,
+    Postfix,
+    Length,
+    Identity,
+    Matrix,
 }
 
-struct Converted {
-    input: InputSequence,
-    shape: Shape,
-}
-
-fn convert_sequence(obj: &Bound<'_, PyAny>) -> PyResult<Converted> {
-    if let Ok(text) = obj.downcast::<PyString>() {
-        return Ok(Converted {
-            input: InputSequence::Text(text.to_string()),
-            shape: Shape::Str,
-        });
-    }
-    if let Ok(bytes) = obj.downcast::<PyBytes>() {
-        return Ok(Converted {
-            input: InputSequence::Bytes(bytes.as_bytes().to_vec()),
-            shape: Shape::Bytes,
-        });
-    }
-    if let Ok(bytes) = obj.extract::<Vec<u8>>() {
-        // bytearray and similar buffer-like objects.
-        return Ok(Converted {
-            input: InputSequence::Bytes(bytes),
-            shape: Shape::Bytes,
-        });
-    }
-
-    let shape = if obj.downcast::<PyTuple>().is_ok() {
-        Shape::Tuple
-    } else if obj.downcast::<PyList>().is_ok() {
-        Shape::List
-    } else {
-        // Generic iterables (e.g. range, custom Sequence) are treated as
-        // list-shaped for reconstruction purposes.
-        Shape::List
-    };
-
-    let items: Vec<Bound<'_, PyAny>> = obj.iter()?.collect::<PyResult<_>>()?;
-    if items.is_empty() {
-        return Ok(Converted {
-            input: InputSequence::Elements(Vec::new()),
-            shape,
-        });
-    }
-
-    // Homogeneous element-type detection. `bool` is checked before `int`
-    // because Python `bool` is an `int` subclass.
-    if items.iter().all(|item| item.is_instance_of::<PyBool>()) {
-        let values: PyResult<Vec<bool>> = items.iter().map(|item| item.extract::<bool>()).collect();
-        return Ok(Converted {
-            input: InputSequence::Booleans(values?),
-            shape,
-        });
-    }
-    if items.iter().all(|item| item.extract::<i64>().is_ok()) {
-        let values: PyResult<Vec<i64>> = items.iter().map(|item| item.extract::<i64>()).collect();
-        return Ok(Converted {
-            input: InputSequence::Integers(values?),
-            shape,
-        });
-    }
-    if items.iter().all(|item| item.downcast::<PyString>().is_ok()) {
-        let elements: Vec<Element> = items
-            .iter()
-            .map(|item| Element::Text(item.extract::<String>().unwrap()))
-            .collect();
-        return Ok(Converted {
-            input: InputSequence::Elements(elements),
-            shape,
-        });
-    }
-
-    Err(PyTypeError::new_err(
-        "unsupported sequence element type: the Rust port only supports str, bytes, \
-         and homogeneous sequences of int, bool, or str",
-    ))
-}
-
-fn element_to_pyobject(py: Python<'_>, element: &Element) -> PyResult<PyObject> {
-    Ok(match element {
-        Element::Char(c) => PyString::new_bound(py, &c.to_string()).into_any().unbind(),
-        Element::Text(value) => PyString::new_bound(py, value).into_any().unbind(),
-        Element::Integer(value) => value.into_py(py),
-        Element::Boolean(value) => value.into_py(py),
-        Element::Byte(value) => value.into_py(py),
-        Element::Gram(inner) => {
-            let items: PyResult<Vec<PyObject>> =
-                inner.iter().map(|e| element_to_pyobject(py, e)).collect();
-            PyList::new_bound(py, items?).into_any().unbind()
-        }
-    })
-}
-
-fn sequence_to_pyobject(py: Python<'_>, sequence: &Sequence, shape: Shape) -> PyResult<PyObject> {
-    match shape {
-        Shape::Str => {
-            let mut text = String::new();
-            for element in sequence {
-                match element {
-                    Element::Char(c) => text.push(*c),
-                    Element::Text(value) => text.push_str(value),
-                    other => {
-                        return Err(PyValueError::new_err(format!(
-                            "cannot reconstruct a str result from element {other:?}"
-                        )))
-                    }
-                }
+impl AlgorithmKind {
+    fn parse(name: &str) -> PyResult<Self> {
+        let normalized = name.trim().to_ascii_lowercase().replace(['-', ' '], "_");
+        let kind = match normalized.as_str() {
+            "levenshtein" => Self::Levenshtein,
+            "damerau" | "damerau_levenshtein" => Self::DamerauLevenshtein,
+            "needleman_wunsch" => Self::NeedlemanWunsch,
+            "smith_waterman" => Self::SmithWaterman,
+            "gotoh" => Self::Gotoh,
+            "strcmp95" | "str_cmp95" => Self::StrCmp95,
+            "mlipns" => Self::Mlipns,
+            "jaro" => Self::Jaro,
+            "jaro_winkler" => Self::JaroWinkler,
+            "hamming" => Self::Hamming,
+            "jaccard" => Self::Jaccard,
+            "sorensen" | "sorensen_dice" | "dice" => Self::Sorensen,
+            "tversky" => Self::Tversky,
+            "cosine" => Self::Cosine,
+            "monge_elkan" => Self::MongeElkan,
+            "bag" => Self::Bag,
+            "overlap" => Self::Overlap,
+            "tanimoto" => Self::Tanimoto,
+            "lcsseq" | "lcs_seq" => Self::LCSSeq,
+            "lcsstr" | "lcs_str" => Self::LCSStr,
+            "ratcliff_obershelp" | "ratcliff" => Self::RatcliffObershelp,
+            "arith_ncd" | "arithncd" => Self::ArithNcd,
+            "rle_ncd" | "rlen_cd" | "rlencd" => Self::RleNcd,
+            "bwtrle_ncd" | "bwtrlen_cd" | "bwtrlen c d" => Self::BwtrleNcd,
+            "sqrt_ncd" | "sqrtncd" => Self::SqrtNcd,
+            "entropy_ncd" | "entropyncd" => Self::EntropyNcd,
+            "bz2_ncd" | "bz2ncd" => Self::Bz2Ncd,
+            "lzma_ncd" | "lzman_cd" | "lzma ncd" => Self::LzmaNcd,
+            "zlib_ncd" | "zlibncd" => Self::ZlibNcd,
+            "editex" => Self::Editex,
+            "mra" => Self::Mra,
+            "prefix" => Self::Prefix,
+            "postfix" => Self::Postfix,
+            "length" => Self::Length,
+            "identity" => Self::Identity,
+            "matrix" => Self::Matrix,
+            _ => {
+                return Err(PyValueError::new_err(format!(
+                    "unknown Rust TextDistance algorithm: {name}"
+                )))
             }
-            Ok(PyString::new_bound(py, &text).into_any().unbind())
-        }
-        Shape::Bytes => {
-            let mut bytes = Vec::with_capacity(sequence.len());
-            for element in sequence {
-                match element {
-                    Element::Byte(value) => bytes.push(*value),
-                    other => {
-                        return Err(PyValueError::new_err(format!(
-                            "cannot reconstruct a bytes result from element {other:?}"
-                        )))
-                    }
-                }
-            }
-            Ok(PyBytes::new_bound(py, &bytes).into_any().unbind())
-        }
-        Shape::List => {
-            let items: PyResult<Vec<PyObject>> = sequence
-                .iter()
-                .map(|element| element_to_pyobject(py, element))
-                .collect();
-            Ok(PyList::new_bound(py, items?).into_any().unbind())
-        }
-        Shape::Tuple => {
-            let items: PyResult<Vec<PyObject>> = sequence
-                .iter()
-                .map(|element| element_to_pyobject(py, element))
-                .collect();
-            Ok(PyTuple::new_bound(py, items?).into_any().unbind())
-        }
+        };
+        Ok(kind)
     }
-}
 
-// ---------------------------------------------------------------------
-// Config extraction helpers
-// ---------------------------------------------------------------------
-
-fn dict_get<'py>(config: &Bound<'py, PyDict>, key: &str) -> Option<Bound<'py, PyAny>> {
-    config.get_item(key).ok().flatten()
-}
-
-fn get_bool(config: &Bound<'_, PyDict>, key: &str, default: bool) -> PyResult<bool> {
-    match dict_get(config, key) {
-        Some(value) if !value.is_none() => value.extract(),
-        _ => Ok(default),
-    }
-}
-
-fn get_f64(config: &Bound<'_, PyDict>, key: &str, default: f64) -> PyResult<f64> {
-    match dict_get(config, key) {
-        Some(value) if !value.is_none() => value.extract(),
-        _ => Ok(default),
-    }
-}
-
-fn get_i64(config: &Bound<'_, PyDict>, key: &str, default: i64) -> PyResult<i64> {
-    match dict_get(config, key) {
-        Some(value) if !value.is_none() => value.extract(),
-        _ => Ok(default),
-    }
-}
-
-fn get_opt_f64_vec(config: &Bound<'_, PyDict>, key: &str) -> PyResult<Option<Vec<f64>>> {
-    match dict_get(config, key) {
-        Some(value) if !value.is_none() => {
-            let items: Vec<Bound<'_, PyAny>> = value.iter()?.collect::<PyResult<_>>()?;
-            let values: PyResult<Vec<f64>> = items.iter().map(|item| item.extract()).collect();
-            Ok(Some(values?))
-        }
-        _ => Ok(None),
-    }
-}
-
-/// `qval` follows the Python convention: missing key -> `default`, explicit
-/// `None` -> word-splitting, non-negative int -> element/n-gram mode.
-fn get_qval(config: &Bound<'_, PyDict>, default: Option<usize>) -> PyResult<Option<usize>> {
-    match dict_get(config, "qval") {
-        None => Ok(default),
-        Some(value) if value.is_none() => Ok(None),
-        Some(value) => Ok(Some(value.extract::<i64>()?.max(0) as usize)),
-    }
-}
-
-// ---------------------------------------------------------------------
-// Panic containment
-// ---------------------------------------------------------------------
-
-/// A handful of algorithms (Tversky, Bag, RLE NCD) report invalid-option
-/// errors by panicking inside the shared `Algorithm` trait's infallible
-/// methods (their fallible `try_*` counterparts are reserved for native
-/// Rust callers). Turning a caught panic into a `ValueError` keeps the
-/// Python boundary from ever segfaulting or aborting on bad input.
-fn run_guarded<T>(f: impl FnOnce() -> T) -> PyResult<T> {
-    catch_unwind(AssertUnwindSafe(f)).map_err(|payload| {
-        let message = payload
-            .downcast_ref::<&str>()
-            .map(|s| s.to_string())
-            .or_else(|| payload.downcast_ref::<String>().cloned())
-            .unwrap_or_else(|| "the Rust algorithm reported an invalid input or option".to_owned());
-        PyValueError::new_err(message)
-    })
-}
-
-// ---------------------------------------------------------------------
-// Algorithm construction
-// ---------------------------------------------------------------------
-
-/// Algorithms whose Python source never runs `_get_sequences` at all and
-/// therefore always compare whole, un-split elements regardless of any
-/// `qval` attribute the instance happens to carry.
-fn always_elements(name: &str) -> bool {
-    matches!(name, "strcmp95" | "editex" | "mra" | "matrix" | "length" | "identity")
-}
-
-fn build_scalar_algorithm(name: &str, config: &Bound<'_, PyDict>) -> PyResult<Box<dyn Algorithm>> {
-    Ok(match name {
-        "hamming" => {
-            let qval = get_qval(config, Some(1))?;
-            let truncate = get_bool(config, "truncate", false)?;
-            let external = get_bool(config, "external", true)?;
-            Box::new(Hamming::from_python(qval, truncate, external))
-        }
-        "levenshtein" => Box::new(Levenshtein::new()),
-        "damerau_levenshtein" => {
-            let restricted = get_bool(config, "restricted", true)?;
-            Box::new(DamerauLevenshtein::with_restricted(restricted))
-        }
-        "jaro" => {
-            let long_tolerance = get_bool(config, "long_tolerance", false)?;
-            let external = get_bool(config, "external", true)?;
-            Box::new(Jaro {
-                long_tolerance,
-                external,
-            })
-        }
-        "jaro_winkler" => {
-            let long_tolerance = get_bool(config, "long_tolerance", false)?;
-            let external = get_bool(config, "external", true)?;
-            Box::new(JaroWinkler {
-                long_tolerance,
-                prefix_weight: 0.1,
-                external,
-            })
-        }
-        "strcmp95" => {
-            let long_strings = get_bool(config, "long_strings", false)?;
-            Box::new(StrCmp95::with_long_strings(long_strings))
-        }
-        "needleman_wunsch" => {
-            let gap_cost = get_f64(config, "gap_cost", 1.0)?;
-            Box::new(NeedlemanWunsch::with_gap_cost(gap_cost))
-        }
-        "gotoh" => {
-            let gap_open = get_f64(config, "gap_open", 1.0)?;
-            let gap_ext = get_f64(config, "gap_ext", 0.4)?;
-            Box::new(Gotoh::with_gap_costs(gap_open, gap_ext))
-        }
-        "smith_waterman" => {
-            let gap_cost = get_f64(config, "gap_cost", 1.0)?;
-            Box::new(SmithWaterman::with_gap_cost(gap_cost))
-        }
-        "mlipns" => {
-            let threshold = get_f64(config, "threshold", 0.25)?;
-            let maxmismatches = get_i64(config, "maxmismatches", 2)?.max(0) as usize;
-            Box::new(MLIPNS::with_params(threshold, maxmismatches))
-        }
-        "jaccard" => {
-            let qval = get_qval(config, Some(1))?;
-            let as_set = get_bool(config, "as_set", false)?;
-            let external = get_bool(config, "external", true)?;
-            Box::new(Jaccard::from_python(qval, as_set, external))
-        }
-        "sorensen" => {
-            let qval = get_qval(config, Some(1))?;
-            let as_set = get_bool(config, "as_set", false)?;
-            let external = get_bool(config, "external", true)?;
-            Box::new(Sorensen::from_python(qval, as_set, external))
-        }
-        "tversky" => {
-            let qval = get_qval(config, Some(1))?;
-            let ks = get_opt_f64_vec(config, "ks")?;
-            let bias = match dict_get(config, "bias") {
-                Some(value) if !value.is_none() => Some(value.extract::<f64>()?),
-                _ => None,
-            };
-            let as_set = get_bool(config, "as_set", false)?;
-            let external = get_bool(config, "external", true)?;
-            Box::new(Tversky::from_python(qval, ks, bias, as_set, external))
-        }
-        "overlap" => {
-            let qval = get_qval(config, Some(1))?;
-            let as_set = get_bool(config, "as_set", false)?;
-            let external = get_bool(config, "external", true)?;
-            Box::new(Overlap::from_python(qval, as_set, external))
-        }
-        "cosine" => {
-            let qval = get_qval(config, Some(1))?;
-            let as_set = get_bool(config, "as_set", false)?;
-            let external = get_bool(config, "external", true)?;
-            Box::new(Cosine::from_python(qval, as_set, external))
-        }
-        "tanimoto" => {
-            let qval = get_qval(config, Some(1))?;
-            let as_set = get_bool(config, "as_set", false)?;
-            let external = get_bool(config, "external", true)?;
-            Box::new(Tanimoto::from_python(qval, as_set, external))
-        }
-        "monge_elkan" => {
-            let qval = get_qval(config, Some(1))?;
-            let symmetric = get_bool(config, "symmetric", false)?;
-            let external = get_bool(config, "external", true)?;
-            // Only the default inner algorithm (unrestricted-default
-            // Damerau-Levenshtein) is supported; a genuinely custom
-            // `algorithm=` object is rejected by the Python wrapper before
-            // reaching this boundary.
-            Box::new(MongeElkan::from_python(
-                DamerauLevenshtein::default(),
-                symmetric,
-                qval,
-                external,
-            ))
-        }
-        "bag" => {
-            let qval = get_qval(config, Some(1))?;
-            let external = get_bool(config, "external", true)?;
-            Box::new(Bag::from_python(qval, false, external))
-        }
-        "ratcliff_obershelp" => Box::new(RatcliffObershelp::new()),
-        "arith_ncd" => {
-            let base = get_i64(config, "base", 2)?.max(2) as u32;
-            let terminator = match dict_get(config, "terminator") {
-                Some(value) if !value.is_none() => {
-                    let text = value.extract::<String>()?;
-                    text.chars().next()
-                }
-                _ => None,
-            };
-            Box::new(ArithNCD::with_config(base, terminator))
-        }
-        "rle_ncd" => {
-            let qval = get_qval(config, Some(1))?;
-            Box::new(RleNcd::from_python(qval))
-        }
-        "bwtrle_ncd" => {
-            let terminator = match dict_get(config, "terminator") {
-                Some(value) if !value.is_none() => {
-                    let text = value.extract::<String>()?;
-                    text.chars().next().unwrap_or('\0')
-                }
-                _ => '\0',
-            };
-            Box::new(BWTRLENCD::with_terminator(Element::Char(terminator)))
-        }
-        "sqrt_ncd" => Box::new(SqrtNcd),
-        "entropy_ncd" => {
-            let coef = get_f64(config, "coef", 1.0)?;
-            let base = get_f64(config, "base", 2.0)?;
-            Box::new(EntropyNcd { coef, base })
-        }
-        "bz2_ncd" => Box::new(Bz2Ncd),
-        "lzma_ncd" => Box::new(LzmaNcd),
-        "zlib_ncd" => Box::new(ZlibNcd),
-        "mra" => Box::new(MRA::new()),
-        "editex" => {
-            let local = get_bool(config, "local", false)?;
-            let match_cost = get_i64(config, "match_cost", 0)?;
-            let group_cost = get_i64(config, "group_cost", 1)?;
-            let mismatch_cost = get_i64(config, "mismatch_cost", 2)?;
-            let external = get_bool(config, "external", true)?;
-            Box::new(Editex::new(
-                local,
-                match_cost,
-                group_cost,
-                mismatch_cost,
-                external,
-            ))
-        }
-        "length" => Box::new(Length),
-        "identity" => Box::new(Identity),
-        "matrix" => {
-            let mismatch_cost = get_f64(config, "mismatch_cost", 0.0)?;
-            let match_cost = get_f64(config, "match_cost", 1.0)?;
-            let symmetric = get_bool(config, "symmetric", true)?;
-            let external = get_bool(config, "external", true)?;
-            // A custom `mat=` lookup table is rejected by the Python wrapper
-            // before reaching this boundary; only the identity-fallback
-            // configuration is supported here.
-            Box::new(Matrix::new(
-                None,
-                mismatch_cost,
-                match_cost,
-                symmetric,
-                external,
-            ))
-        }
-        other => {
-            return Err(PyValueError::new_err(format!(
-                "unknown or unsupported algorithm: {other}"
-            )))
-        }
-    })
-}
-
-fn scalar_qvalue(name: &str, config: &Bound<'_, PyDict>) -> PyResult<QValue> {
-    if always_elements(name) {
-        return Ok(QValue::Elements);
-    }
-    let qval = get_qval(config, Some(1))?;
-    Ok(QValue::from_python(qval))
-}
-
-// ---------------------------------------------------------------------
-// Sequence-output algorithms: LCSSeq, LCSStr, Prefix, Postfix
-// ---------------------------------------------------------------------
-
-enum SequenceAlgorithm {
-    LCSSeq(LCSSeq),
-    LCSStr(LCSStr),
-    Prefix(Prefix),
-    Postfix(Postfix),
-}
-
-fn build_sequence_algorithm(
-    name: &str,
-    config: &Bound<'_, PyDict>,
-) -> PyResult<Option<(SequenceAlgorithm, QValue)>> {
-    Ok(match name {
-        "lcsseq" => {
-            let qval = get_qval(config, Some(1))?;
-            Some((
-                SequenceAlgorithm::LCSSeq(LCSSeq::new()),
-                QValue::from_python(qval),
-            ))
-        }
-        "lcsstr" => {
-            let qval = get_qval(config, Some(1))?;
-            let external = get_bool(config, "external", true)?;
-            Some((
-                SequenceAlgorithm::LCSStr(LCSStr::from_python(qval, external)),
-                QValue::from_python(qval),
-            ))
-        }
-        "prefix" => {
-            let qval = get_qval(config, Some(1))?;
-            Some((
-                SequenceAlgorithm::Prefix(Prefix::new()),
-                QValue::from_python(qval),
-            ))
-        }
-        "postfix" => {
-            let qval = get_qval(config, Some(1))?;
-            Some((
-                SequenceAlgorithm::Postfix(Postfix::new()),
-                QValue::from_python(qval),
-            ))
-        }
-        _ => None,
-    })
-}
-
-impl SequenceAlgorithm {
-    fn as_output_algorithm(&self) -> &dyn OutputAlgorithm {
+    const fn name(self) -> &'static str {
         match self {
-            Self::LCSSeq(alg) => alg,
-            Self::LCSStr(alg) => alg,
-            Self::Prefix(alg) => alg,
-            Self::Postfix(alg) => alg,
+            Self::Levenshtein => "levenshtein",
+            Self::DamerauLevenshtein => "damerau_levenshtein",
+            Self::NeedlemanWunsch => "needleman_wunsch",
+            Self::SmithWaterman => "smith_waterman",
+            Self::Gotoh => "gotoh",
+            Self::StrCmp95 => "strcmp95",
+            Self::Mlipns => "mlipns",
+            Self::Jaro => "jaro",
+            Self::JaroWinkler => "jaro_winkler",
+            Self::Hamming => "hamming",
+            Self::Jaccard => "jaccard",
+            Self::Sorensen => "sorensen",
+            Self::Tversky => "tversky",
+            Self::Cosine => "cosine",
+            Self::MongeElkan => "monge_elkan",
+            Self::Bag => "bag",
+            Self::Overlap => "overlap",
+            Self::Tanimoto => "tanimoto",
+            Self::LCSSeq => "lcsseq",
+            Self::LCSStr => "lcsstr",
+            Self::RatcliffObershelp => "ratcliff_obershelp",
+            Self::ArithNcd => "arith_ncd",
+            Self::RleNcd => "rle_ncd",
+            Self::BwtrleNcd => "bwtrle_ncd",
+            Self::SqrtNcd => "sqrt_ncd",
+            Self::EntropyNcd => "entropy_ncd",
+            Self::Bz2Ncd => "bz2_ncd",
+            Self::LzmaNcd => "lzma_ncd",
+            Self::ZlibNcd => "zlib_ncd",
+            Self::Editex => "editex",
+            Self::Mra => "mra",
+            Self::Prefix => "prefix",
+            Self::Postfix => "postfix",
+            Self::Length => "length",
+            Self::Identity => "identity",
+            Self::Matrix => "matrix",
         }
     }
 }
 
-// ---------------------------------------------------------------------
-// Postfix needs its inputs reversed before the shared `Prefix::call`-style
-// logic runs, and reversed back afterwards; `Postfix::call` in the core
-// crate already does this internally given `PreparedSequence`s, so no
-// special casing is needed here beyond routing to it.
-// ---------------------------------------------------------------------
-
-fn apply_scalar_method(
-    algorithm: &dyn Algorithm,
-    method: &str,
-    prepared: &[PreparedSequence],
-) -> PyResult<f64> {
-    run_guarded(|| match method {
-        "call" => algorithm.call(prepared),
-        "distance" => algorithm.distance(prepared),
-        "similarity" => algorithm.similarity(prepared),
-        "normalized_distance" => algorithm.normalized_distance(prepared),
-        "normalized_similarity" => algorithm.normalized_similarity(prepared),
-        "maximum" => algorithm.maximum(prepared),
-        _ => f64::NAN,
-    })
-}
-
-fn respond_with_output(
-    py: Python<'_>,
+#[derive(Clone, Debug)]
+struct Evaluated {
     output: AlgorithmOutput,
     maximum: f64,
     mode: ScoreMode,
-    method: &str,
-    shape: Shape,
-) -> PyResult<PyObject> {
-    let distance = output_distance(&output, mode, maximum);
-    let similarity = output_similarity(&output, mode, maximum);
+}
 
-    match method {
-        "call" => {
-            let empty = Sequence::new();
-            let sequence = output.sequence().unwrap_or(&empty);
-            sequence_to_pyobject(py, sequence, shape)
+/// One Python-facing handle for a named Rust algorithm.
+#[pyclass(module = "textdistance_port")]
+pub struct RustAlgorithm {
+    kind: AlgorithmKind,
+    qval: Option<usize>,
+    external: bool,
+    as_set: bool,
+    truncate: bool,
+    symmetric: bool,
+    restricted: bool,
+    local: bool,
+    base: f64,
+    coef: f64,
+    bias: Option<f64>,
+    ks: Option<Vec<f64>>,
+    terminator: Option<char>,
+    gap_cost: f64,
+    gap_open: f64,
+    gap_ext: f64,
+    long_tolerance: bool,
+    prefix_weight: f64,
+    long_strings: bool,
+    threshold: f64,
+    maxmismatches: usize,
+    match_cost: i64,
+    group_cost: i64,
+    mismatch_cost: i64,
+    matrix_match_cost: f64,
+    matrix_mismatch_cost: f64,
+    matrix: Option<BTreeMap<Vec<PreparedSequence>, f64>>,
+    monge_comparator: String,
+}
+
+impl RustAlgorithm {
+    fn from_options(
+        name: &str,
+        qval: Option<usize>,
+        external: bool,
+        options: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Self> {
+        reject_python_callbacks(options)?;
+        let kind = AlgorithmKind::parse(name)?;
+
+        Ok(Self {
+            kind,
+            qval,
+            external,
+            as_set: option_bool(options, "as_set", false)?,
+            truncate: option_bool(options, "truncate", false)?,
+            symmetric: option_bool(options, "symmetric", false)?,
+            restricted: option_bool(options, "restricted", true)?,
+            local: option_bool(options, "local", false)?,
+            base: option_f64(options, "base", 2.0)?,
+            coef: option_f64(options, "coef", 1.0)?,
+            bias: option_optional_f64(options, "bias")?,
+            ks: option_vec_f64(options, "ks")?,
+            terminator: option_char(options, "terminator")?,
+            gap_cost: option_f64(options, "gap_cost", 1.0)?,
+            gap_open: option_f64(options, "gap_open", 1.0)?,
+            gap_ext: option_f64(options, "gap_ext", 0.4)?,
+            long_tolerance: option_bool(options, "long_tolerance", false)?,
+            prefix_weight: option_f64(options, "prefix_weight", 0.1)?,
+            long_strings: option_bool(options, "long_strings", false)?,
+            threshold: option_f64(options, "threshold", 0.25)?,
+            maxmismatches: option_usize(options, "maxmismatches", 2)?,
+            match_cost: if matches!(kind, AlgorithmKind::Editex) {
+                option_i64(options, "match_cost", 0)?
+            } else {
+                0
+            },
+            group_cost: if matches!(kind, AlgorithmKind::Editex) {
+                option_i64(options, "group_cost", 1)?
+            } else {
+                1
+            },
+            mismatch_cost: if matches!(kind, AlgorithmKind::Editex) {
+                option_i64(options, "mismatch_cost", 2)?
+            } else {
+                2
+            },
+            matrix_match_cost: option_f64(options, "match_cost", 1.0)?,
+            matrix_mismatch_cost: option_f64(options, "mismatch_cost", 0.0)?,
+            matrix: option_matrix(options)?,
+            monge_comparator: option_string(
+                options,
+                "algorithm",
+                "damerau_levenshtein".to_owned(),
+            )?,
+        })
+    }
+
+    fn qvalue(&self) -> QValue {
+        QValue::from_python(self.qval)
+    }
+
+    fn prepare(&self, inputs: &[InputSequence]) -> PyResult<Vec<PreparedSequence>> {
+        let qvalue = match self.kind {
+            AlgorithmKind::Matrix
+            | AlgorithmKind::Mra
+            | AlgorithmKind::Editex
+            | AlgorithmKind::BwtrleNcd
+            | AlgorithmKind::Bz2Ncd
+            | AlgorithmKind::LzmaNcd
+            | AlgorithmKind::ZlibNcd => QValue::Elements,
+            _ => self.qvalue(),
+        };
+        prepare_sequences(inputs, qvalue).map_err(input_error)
+    }
+
+    fn matrix_scorer(&self) -> Option<MatrixScorer> {
+        let matrix = self.matrix.as_ref()?;
+        let entries = matrix
+            .iter()
+            .filter_map(|(key, score)| match key.as_slice() {
+                [left, right] if left.len() == 1 && right.len() == 1 => {
+                    Some(((left[0].clone(), right[0].clone()), *score))
+                }
+                _ => None,
+            });
+        Some(MatrixScorer::new(
+            entries,
+            self.matrix_mismatch_cost,
+            self.matrix_match_cost,
+            self.symmetric,
+        ))
+    }
+
+    fn evaluate(
+        &self,
+        inputs: &[InputSequence],
+        prepared: &[PreparedSequence],
+    ) -> PyResult<Evaluated> {
+        match self.kind {
+            AlgorithmKind::Levenshtein => Ok(numeric(&Levenshtein::new(), prepared)),
+            AlgorithmKind::DamerauLevenshtein => Ok(numeric(
+                &DamerauLevenshtein::with_restricted(self.restricted),
+                prepared,
+            )),
+            AlgorithmKind::NeedlemanWunsch => {
+                if let Some(scorer) = self.matrix_scorer() {
+                    Ok(numeric(
+                        &NeedlemanWunsch::with_scorer(self.gap_cost, scorer),
+                        prepared,
+                    ))
+                } else {
+                    Ok(numeric(
+                        &NeedlemanWunsch::with_gap_cost(self.gap_cost),
+                        prepared,
+                    ))
+                }
+            }
+            AlgorithmKind::SmithWaterman => {
+                if let Some(scorer) = self.matrix_scorer() {
+                    Ok(numeric(
+                        &SmithWaterman::with_scorer(self.gap_cost, scorer),
+                        prepared,
+                    ))
+                } else {
+                    Ok(numeric(
+                        &SmithWaterman::with_gap_cost(self.gap_cost),
+                        prepared,
+                    ))
+                }
+            }
+            AlgorithmKind::Gotoh => {
+                if let Some(scorer) = self.matrix_scorer() {
+                    Ok(numeric(
+                        &Gotoh::with_scorer(self.gap_open, self.gap_ext, scorer),
+                        prepared,
+                    ))
+                } else {
+                    Ok(numeric(
+                        &Gotoh::with_gap_costs(self.gap_open, self.gap_ext),
+                        prepared,
+                    ))
+                }
+            }
+            AlgorithmKind::StrCmp95 => Ok(numeric(
+                &StrCmp95::with_long_strings(self.long_strings),
+                prepared,
+            )),
+            AlgorithmKind::Mlipns => Ok(numeric(
+                &MLIPNS::with_params(self.threshold, self.maxmismatches),
+                prepared,
+            )),
+            AlgorithmKind::Jaro => Ok(numeric(
+                &Jaro {
+                    long_tolerance: self.long_tolerance,
+                    external: self.external,
+                },
+                prepared,
+            )),
+            AlgorithmKind::JaroWinkler => Ok(numeric(
+                &JaroWinkler {
+                    long_tolerance: self.long_tolerance,
+                    prefix_weight: self.prefix_weight,
+                    external: self.external,
+                },
+                prepared,
+            )),
+            AlgorithmKind::Hamming => Ok(numeric(
+                &Hamming::from_python(self.qval, self.truncate, self.external),
+                prepared,
+            )),
+            AlgorithmKind::Jaccard => Ok(numeric(
+                &Jaccard::from_python(self.qval, self.as_set, self.external),
+                prepared,
+            )),
+            AlgorithmKind::Sorensen => Ok(numeric(
+                &Sorensen::from_python(self.qval, self.as_set, self.external),
+                prepared,
+            )),
+            AlgorithmKind::Tversky => {
+                let algorithm = Tversky::from_python(
+                    self.qval,
+                    self.ks.clone(),
+                    self.bias,
+                    self.as_set,
+                    self.external,
+                );
+                let score = algorithm
+                    .try_similarity(prepared)
+                    .map_err(|error| PyValueError::new_err(error.to_string()))?;
+                Ok(evaluated_score(&algorithm, score, prepared))
+            }
+            AlgorithmKind::Cosine => Ok(numeric(
+                &Cosine::from_python(self.qval, self.as_set, self.external),
+                prepared,
+            )),
+            AlgorithmKind::MongeElkan => match self.monge_comparator.as_str() {
+                "jaro" => Ok(numeric(
+                    &MongeElkan::from_python(
+                        Jaro::default(),
+                        self.symmetric,
+                        self.qval,
+                        self.external,
+                    ),
+                    prepared,
+                )),
+                "jaro_winkler" => Ok(numeric(
+                    &MongeElkan::from_python(
+                        JaroWinkler::default(),
+                        self.symmetric,
+                        self.qval,
+                        self.external,
+                    ),
+                    prepared,
+                )),
+                "damerau_levenshtein" | "damerau" => Ok(numeric(
+                    &MongeElkan::from_python(
+                        DamerauLevenshtein::default(),
+                        self.symmetric,
+                        self.qval,
+                        self.external,
+                    ),
+                    prepared,
+                )),
+                other => Err(PyValueError::new_err(format!(
+                    "unsupported built-in Monge-Elkan comparator: {other}"
+                ))),
+            },
+            AlgorithmKind::Bag => {
+                let algorithm =
+                    crate::algorithms::bag::Bag::from_python(self.qval, self.as_set, self.external);
+                let score = algorithm
+                    .try_raw_score(prepared)
+                    .map_err(|error| PyValueError::new_err(error.to_string()))?;
+                Ok(evaluated_score(&algorithm, score, prepared))
+            }
+            AlgorithmKind::Overlap => Ok(numeric(
+                &Overlap::from_python(self.qval, self.as_set, self.external),
+                prepared,
+            )),
+            AlgorithmKind::Tanimoto => Ok(numeric(
+                &Tanimoto::from_python(self.qval, self.as_set, self.external),
+                prepared,
+            )),
+            AlgorithmKind::LCSSeq => output(&LCSSeq::new(), prepared),
+            AlgorithmKind::LCSStr => {
+                require_string_inputs(inputs, "LCSStr")?;
+                let algorithm = LCSStr::from_python(self.qval, self.external);
+                let value = algorithm.output_inputs(inputs).map_err(algorithm_error)?;
+                Ok(Evaluated {
+                    output: value,
+                    maximum: algorithm.output_maximum(prepared),
+                    mode: algorithm.output_mode(),
+                })
+            }
+            AlgorithmKind::RatcliffObershelp => Ok(numeric(&RatcliffObershelp::new(), prepared)),
+            AlgorithmKind::ArithNcd => Ok(numeric(
+                &ArithNCD::with_config(self.base as u32, self.terminator),
+                prepared,
+            )),
+            AlgorithmKind::RleNcd => {
+                let algorithm = RleNcd::from_python(self.qval);
+                let score = algorithm
+                    .try_raw_score(prepared)
+                    .map_err(|error| PyValueError::new_err(error.to_string()))?;
+                Ok(evaluated_score(&algorithm, score, prepared))
+            }
+            AlgorithmKind::BwtrleNcd => {
+                require_string_inputs(inputs, "BWTRLE NCD")?;
+                let algorithm =
+                    BWTRLENCD::with_terminator(Element::Char(self.terminator.unwrap_or('\0')));
+                Ok(numeric(&algorithm, prepared))
+            }
+            AlgorithmKind::SqrtNcd => Ok(numeric(&SqrtNcd, prepared)),
+            AlgorithmKind::EntropyNcd => Ok(numeric(
+                &EntropyNcd {
+                    coef: self.coef,
+                    base: self.base,
+                },
+                prepared,
+            )),
+            AlgorithmKind::Bz2Ncd => {
+                ensure_binary_inputs(inputs, "BZ2 NCD")?;
+                Ok(numeric(&Bz2Ncd, prepared))
+            }
+            AlgorithmKind::LzmaNcd => {
+                ensure_binary_inputs(inputs, "LZMA NCD")?;
+                Ok(numeric(&LzmaNcd, prepared))
+            }
+            AlgorithmKind::ZlibNcd => {
+                ensure_binary_inputs(inputs, "ZLIB NCD")?;
+                Ok(numeric(&ZlibNcd, prepared))
+            }
+            AlgorithmKind::Editex => {
+                require_string_inputs(inputs, "Editex")?;
+                Ok(numeric(
+                    &Editex::new(
+                        self.local,
+                        self.match_cost,
+                        self.group_cost,
+                        self.mismatch_cost,
+                        self.external,
+                    ),
+                    prepared,
+                ))
+            }
+            AlgorithmKind::Mra => {
+                require_string_inputs(inputs, "MRA")?;
+                Ok(numeric(&MRA::new(), prepared))
+            }
+            AlgorithmKind::Prefix => output(&Prefix::new(), prepared),
+            AlgorithmKind::Postfix => output(&Postfix::new(), prepared),
+            AlgorithmKind::Length => Ok(numeric(&Length::new(), prepared)),
+            AlgorithmKind::Identity => Ok(numeric(&Identity::new(), prepared)),
+            AlgorithmKind::Matrix => Ok(numeric(
+                &Matrix::new(
+                    self.matrix.clone(),
+                    self.matrix_mismatch_cost,
+                    self.matrix_match_cost,
+                    self.symmetric,
+                    self.external,
+                ),
+                prepared,
+            )),
         }
-        "distance" => Ok(distance.into_py(py)),
-        "similarity" => Ok(similarity.into_py(py)),
-        "normalized_distance" => Ok(normalize_distance(distance, maximum).into_py(py)),
-        "normalized_similarity" => Ok(normalize_similarity(distance, maximum).into_py(py)),
-        "maximum" => Ok(maximum.into_py(py)),
-        other => Err(PyValueError::new_err(format!("unknown method: {other}"))),
+    }
+
+    fn evaluate_from_args(
+        &self,
+        args: &Bound<'_, PyTuple>,
+    ) -> PyResult<(Vec<InputSequence>, Evaluated)> {
+        let inputs = extract_inputs(args)?;
+        let prepared = self.prepare(&inputs)?;
+        let evaluated = self.evaluate(&inputs, &prepared)?;
+        Ok((inputs, evaluated))
+    }
+
+    fn numeric_method(&self, args: &Bound<'_, PyTuple>, method: NumericMethod) -> PyResult<f64> {
+        let (_, evaluated) = self.evaluate_from_args(args)?;
+        Ok(match method {
+            NumericMethod::Distance => {
+                output_distance(&evaluated.output, evaluated.mode, evaluated.maximum)
+            }
+            NumericMethod::Similarity => {
+                output_similarity(&evaluated.output, evaluated.mode, evaluated.maximum)
+            }
+            NumericMethod::NormalizedDistance => {
+                let distance =
+                    output_distance(&evaluated.output, evaluated.mode, evaluated.maximum);
+                if evaluated.maximum == 0.0 {
+                    0.0
+                } else {
+                    distance / evaluated.maximum
+                }
+            }
+            NumericMethod::NormalizedSimilarity => {
+                let distance =
+                    output_distance(&evaluated.output, evaluated.mode, evaluated.maximum);
+                if evaluated.maximum == 0.0 {
+                    1.0
+                } else {
+                    1.0 - distance / evaluated.maximum
+                }
+            }
+            NumericMethod::Maximum => evaluated.maximum,
+        })
     }
 }
 
-// ---------------------------------------------------------------------
-// Top-level entry point
-// ---------------------------------------------------------------------
+#[derive(Clone, Copy)]
+enum NumericMethod {
+    Distance,
+    Similarity,
+    NormalizedDistance,
+    NormalizedSimilarity,
+    Maximum,
+}
 
-/// Compute one common method (`call`, `distance`, `similarity`,
-/// `normalized_distance`, `normalized_similarity`, or `maximum`) for a
-/// named public algorithm, using only the Rust core for the computation.
-///
-/// `config` is expected to be the calling Python instance's `__dict__`
-/// (or a subset of it); unrecognized keys are ignored. `sequences` are the
-/// raw Python arguments the source library's method would have received.
+#[pymethods]
+impl RustAlgorithm {
+    #[new]
+    #[pyo3(signature = (name, qval=1, external=true, **options))]
+    fn new(
+        name: &str,
+        qval: Option<usize>,
+        external: bool,
+        options: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Self> {
+        Self::from_options(name, qval, external, options)
+    }
+
+    #[pyo3(signature = (*sequences))]
+    fn __call__(&self, py: Python<'_>, sequences: &Bound<'_, PyTuple>) -> PyResult<Py<PyAny>> {
+        let (inputs, evaluated) = self.evaluate_from_args(sequences)?;
+        match &evaluated.output {
+            AlgorithmOutput::Score(value) => Ok(PyFloat::new(py, *value).into_any().unbind()),
+            AlgorithmOutput::Sequence(sequence) => sequence_to_py(
+                py,
+                sequence,
+                &inputs,
+                self.qval == Some(1) || self.kind == AlgorithmKind::LCSStr,
+            ),
+        }
+    }
+
+    #[pyo3(signature = (*sequences))]
+    fn distance(&self, sequences: &Bound<'_, PyTuple>) -> PyResult<f64> {
+        self.numeric_method(sequences, NumericMethod::Distance)
+    }
+
+    #[pyo3(signature = (*sequences))]
+    fn similarity(&self, sequences: &Bound<'_, PyTuple>) -> PyResult<f64> {
+        self.numeric_method(sequences, NumericMethod::Similarity)
+    }
+
+    #[pyo3(signature = (*sequences))]
+    fn normalized_distance(&self, sequences: &Bound<'_, PyTuple>) -> PyResult<f64> {
+        self.numeric_method(sequences, NumericMethod::NormalizedDistance)
+    }
+
+    #[pyo3(signature = (*sequences))]
+    fn normalized_similarity(&self, sequences: &Bound<'_, PyTuple>) -> PyResult<f64> {
+        self.numeric_method(sequences, NumericMethod::NormalizedSimilarity)
+    }
+
+    #[pyo3(signature = (*sequences))]
+    fn maximum(&self, sequences: &Bound<'_, PyTuple>) -> PyResult<f64> {
+        self.numeric_method(sequences, NumericMethod::Maximum)
+    }
+
+    #[getter]
+    fn name(&self) -> &'static str {
+        self.kind.name()
+    }
+
+    #[getter]
+    fn qval(&self) -> Option<usize> {
+        self.qval
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "RustAlgorithm(name='{}', qval={:?}, external={})",
+            self.kind.name(),
+            self.qval,
+            self.external
+        )
+    }
+}
+
 #[pyfunction]
-fn compute(
-    py: Python<'_>,
+#[pyo3(signature = (name, qval=1, external=true, **options))]
+fn algorithm(
     name: &str,
-    config: &Bound<'_, PyDict>,
-    method: &str,
-    sequences: Vec<Bound<'_, PyAny>>,
-) -> PyResult<PyObject> {
-    let converted: PyResult<Vec<Converted>> =
-        sequences.iter().map(convert_sequence).collect();
-    let converted = converted?;
-    let shape = converted.first().map(|c| c.shape).unwrap_or(Shape::List);
-    let inputs: Vec<InputSequence> = converted.into_iter().map(|c| c.input).collect();
-
-    if let Some((sequence_algorithm, qvalue)) = build_sequence_algorithm(name, config)? {
-        let prepared = textdistance_port::prepare_sequences(&inputs, qvalue)
-            .map_err(|error| PyValueError::new_err(error.to_string()))?;
-
-        // LCSStr has bespoke early-return rules that run on the *raw*
-        // (unprepared) inputs: empty before q-value preparation, and a
-        // single input passed through unchanged regardless of `qval`. Every
-        // common method (call/distance/similarity/normalized_*) ultimately
-        // derives from that same early-return-aware result in the source
-        // library, so route all of them through it, not just `call`.
-        if let SequenceAlgorithm::LCSStr(lcsstr) = &sequence_algorithm {
-            let output = run_guarded(|| lcsstr.output_inputs(&inputs))?
-                .map_err(|error| PyValueError::new_err(error.to_string()))?;
-            let maximum = run_guarded(|| lcsstr.output_maximum(&prepared))?;
-            let mode = lcsstr.output_mode();
-            return respond_with_output(py, output, maximum, mode, method, shape);
-        }
-
-        let output_algorithm = sequence_algorithm.as_output_algorithm();
-        let output = run_guarded(|| output_algorithm.output(&prepared))?
-            .map_err(|error| PyValueError::new_err(error.to_string()))?;
-        let maximum = run_guarded(|| output_algorithm.output_maximum(&prepared))?;
-        let mode = output_algorithm.output_mode();
-        return respond_with_output(py, output, maximum, mode, method, shape);
-    }
-
-    let algorithm = build_scalar_algorithm(name, config)?;
-    let qvalue = scalar_qvalue(name, config)?;
-    let prepared = textdistance_port::prepare_sequences(&inputs, qvalue)
-        .map_err(|error| PyValueError::new_err(error.to_string()))?;
-    let result = apply_scalar_method(algorithm.as_ref(), method, &prepared)?;
-    Ok(result.into_py(py))
-}
-
-#[pyfunction]
-fn version() -> &'static str {
-    textdistance_port::VERSION
+    qval: Option<usize>,
+    external: bool,
+    options: Option<&Bound<'_, PyDict>>,
+) -> PyResult<RustAlgorithm> {
+    RustAlgorithm::from_options(name, qval, external, options)
 }
 
 #[pymodule]
-fn textdistance_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(compute, m)?)?;
-    m.add_function(wrap_pyfunction!(version, m)?)?;
+fn textdistance_port(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    module.add_class::<RustAlgorithm>()?;
+    module.add_function(wrap_pyfunction!(algorithm, module)?)?;
+    module.add("__version__", crate::VERSION)?;
     Ok(())
+}
+
+fn numeric<A: Algorithm>(algorithm: &A, sequences: &[PreparedSequence]) -> Evaluated {
+    evaluated_score(algorithm, Algorithm::call(algorithm, sequences), sequences)
+}
+
+fn evaluated_score<A: Algorithm>(
+    algorithm: &A,
+    score: f64,
+    sequences: &[PreparedSequence],
+) -> Evaluated {
+    Evaluated {
+        output: AlgorithmOutput::Score(score),
+        maximum: Algorithm::maximum(algorithm, sequences),
+        mode: Algorithm::score_mode(algorithm),
+    }
+}
+
+fn output<A: OutputAlgorithm>(
+    algorithm: &A,
+    sequences: &[PreparedSequence],
+) -> PyResult<Evaluated> {
+    Ok(Evaluated {
+        output: algorithm.output(sequences).map_err(algorithm_error)?,
+        maximum: algorithm.output_maximum(sequences),
+        mode: algorithm.output_mode(),
+    })
+}
+
+fn extract_inputs(args: &Bound<'_, PyTuple>) -> PyResult<Vec<InputSequence>> {
+    args.iter().map(|value| input_from_object(&value)).collect()
+}
+
+fn input_from_object(value: &Bound<'_, PyAny>) -> PyResult<InputSequence> {
+    if let Ok(text) = value.extract::<String>() {
+        return Ok(InputSequence::Text(text));
+    }
+    if let Ok(bytes) = value.cast::<PyBytes>() {
+        return Ok(InputSequence::Bytes(bytes.as_bytes().to_vec()));
+    }
+    if let Ok(list) = value.cast::<PyList>() {
+        return input_from_items(list.iter().collect());
+    }
+    if let Ok(tuple) = value.cast::<PyTuple>() {
+        return input_from_items(tuple.iter().collect());
+    }
+
+    Err(PyTypeError::new_err(
+        "Rust adapter supports only str, bytes, list/tuple[int], and list/tuple[bool] inputs",
+    ))
+}
+
+fn input_from_items<'py>(items: Vec<Bound<'py, PyAny>>) -> PyResult<InputSequence> {
+    if items.is_empty() {
+        return Ok(InputSequence::Elements(Vec::new()));
+    }
+
+    if items.iter().all(|item| item.is_instance_of::<PyBool>()) {
+        return items
+            .into_iter()
+            .map(|item| item.extract::<bool>())
+            .collect::<PyResult<Vec<_>>>()
+            .map(InputSequence::Booleans);
+    }
+
+    if items.iter().all(|item| item.extract::<i64>().is_ok()) {
+        return items
+            .into_iter()
+            .map(|item| item.extract::<i64>())
+            .collect::<PyResult<Vec<_>>>()
+            .map(InputSequence::Integers);
+    }
+
+    if items.iter().all(|item| item.extract::<String>().is_ok()) {
+        return items
+            .into_iter()
+            .map(|item| item.extract::<String>().map(Element::Text))
+            .collect::<PyResult<Vec<_>>>()
+            .map(InputSequence::Elements);
+    }
+
+    if items
+        .iter()
+        .all(|item| item.is_instance_of::<PyList>() || item.is_instance_of::<PyTuple>())
+    {
+        let mut grams = Vec::with_capacity(items.len());
+        for item in items {
+            let nested: Vec<Bound<'_, PyAny>> = if let Ok(tuple) = item.cast::<PyTuple>() {
+                tuple.iter().collect()
+            } else {
+                item.cast::<PyList>()?.iter().collect()
+            };
+            let mut values = Vec::with_capacity(nested.len());
+            for value in nested {
+                if let Ok(text) = value.extract::<String>() {
+                    let mut chars = text.chars();
+                    if let (Some(character), None) = (chars.next(), chars.next()) {
+                        values.push(Element::Char(character));
+                    } else {
+                        values.push(Element::Text(text));
+                    }
+                } else if let Ok(integer) = value.extract::<i64>() {
+                    values.push(Element::Integer(integer));
+                } else if let Ok(boolean) = value.extract::<bool>() {
+                    values.push(Element::Boolean(boolean));
+                } else {
+                    return Err(PyTypeError::new_err(
+                        "Rust adapter requires homogeneous q-gram elements",
+                    ));
+                }
+            }
+            grams.push(Element::Gram(values));
+        }
+        return Ok(InputSequence::Elements(grams));
+    }
+
+    Err(PyTypeError::new_err(
+        "Rust adapter requires homogeneous integer, boolean, or string sequences",
+    ))
+}
+
+fn sequence_to_py(
+    py: Python<'_>,
+    sequence: &Sequence,
+    inputs: &[InputSequence],
+    scalar_sequence: bool,
+) -> PyResult<Py<PyAny>> {
+    match inputs.first() {
+        Some(InputSequence::Text(_))
+            if scalar_sequence
+                && sequence
+                    .iter()
+                    .all(|element| matches!(element, Element::Char(_) | Element::Text(_))) =>
+        {
+            let mut value = String::new();
+            for element in sequence {
+                match element {
+                    Element::Char(character) => value.push(*character),
+                    Element::Text(text) => value.push_str(text),
+                    _ => unreachable!(),
+                }
+            }
+            Ok(PyString::new(py, &value).into_any().unbind())
+        }
+        Some(InputSequence::Bytes(_))
+            if scalar_sequence
+                && sequence
+                    .iter()
+                    .all(|element| matches!(element, Element::Byte(_))) =>
+        {
+            let bytes: Vec<u8> = sequence
+                .iter()
+                .map(|element| match element {
+                    Element::Byte(value) => *value,
+                    _ => unreachable!(),
+                })
+                .collect();
+            Ok(PyBytes::new(py, &bytes).into_any().unbind())
+        }
+        _ => {
+            let list = PyList::empty(py);
+            for element in sequence {
+                list.append(element_to_py(py, element)?)?;
+            }
+            Ok(list.into_any().unbind())
+        }
+    }
+}
+
+fn element_to_py(py: Python<'_>, element: &Element) -> PyResult<Py<PyAny>> {
+    Ok(match element {
+        Element::Char(value) => PyString::new(py, &value.to_string()).into_any().unbind(),
+        Element::Byte(value) => PyInt::new(py, *value).into_any().unbind(),
+        Element::Integer(value) => PyInt::new(py, *value).into_any().unbind(),
+        Element::Boolean(value) => PyBool::new(py, *value).to_owned().into_any().unbind(),
+        Element::Text(value) => PyString::new(py, value).into_any().unbind(),
+        Element::Gram(values) => {
+            let list = PyList::empty(py);
+            for value in values {
+                list.append(element_to_py(py, value)?)?;
+            }
+            list.to_tuple().into_any().unbind()
+        }
+    })
+}
+
+fn require_string_inputs(inputs: &[InputSequence], algorithm: &str) -> PyResult<()> {
+    if inputs
+        .iter()
+        .all(|input| matches!(input, InputSequence::Text(_)))
+    {
+        Ok(())
+    } else {
+        Err(PyTypeError::new_err(format!(
+            "{algorithm} requires str inputs in the Rust adapter"
+        )))
+    }
+}
+
+fn ensure_binary_inputs(inputs: &[InputSequence], algorithm: &str) -> PyResult<()> {
+    let all_text = inputs
+        .iter()
+        .all(|input| matches!(input, InputSequence::Text(_)));
+    let all_bytes = inputs
+        .iter()
+        .all(|input| matches!(input, InputSequence::Bytes(_)));
+    if all_text || all_bytes {
+        Ok(())
+    } else {
+        Err(PyTypeError::new_err(format!(
+            "{algorithm} supports only str and bytes inputs in the Rust adapter"
+        )))
+    }
+}
+
+fn algorithm_error(error: AlgorithmError) -> PyErr {
+    PyValueError::new_err(error.to_string())
+}
+
+fn input_error(error: crate::core::InputError) -> PyErr {
+    PyValueError::new_err(error.to_string())
+}
+
+fn reject_python_callbacks(options: Option<&Bound<'_, PyDict>>) -> PyResult<()> {
+    for name in ["test_func", "sim_test"] {
+        if has_option(options, name)? {
+            return Err(PyTypeError::new_err(format!(
+                "{name} callbacks cannot cross the Rust adapter boundary"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn has_option(options: Option<&Bound<'_, PyDict>>, name: &str) -> PyResult<bool> {
+    match options {
+        Some(options) => Ok(options.contains(name)?),
+        None => Ok(false),
+    }
+}
+
+fn option_bool(options: Option<&Bound<'_, PyDict>>, name: &str, default: bool) -> PyResult<bool> {
+    match option_value(options, name)? {
+        Some(value) => value.extract::<bool>(),
+        None => Ok(default),
+    }
+}
+
+fn option_usize(
+    options: Option<&Bound<'_, PyDict>>,
+    name: &str,
+    default: usize,
+) -> PyResult<usize> {
+    match option_value(options, name)? {
+        Some(value) => value.extract::<usize>(),
+        None => Ok(default),
+    }
+}
+
+fn option_i64(options: Option<&Bound<'_, PyDict>>, name: &str, default: i64) -> PyResult<i64> {
+    match option_value(options, name)? {
+        Some(value) => value.extract::<i64>(),
+        None => Ok(default),
+    }
+}
+
+fn option_f64(options: Option<&Bound<'_, PyDict>>, name: &str, default: f64) -> PyResult<f64> {
+    match option_value(options, name)? {
+        Some(value) => value.extract::<f64>(),
+        None => Ok(default),
+    }
+}
+
+fn option_optional_f64(options: Option<&Bound<'_, PyDict>>, name: &str) -> PyResult<Option<f64>> {
+    match option_value(options, name)? {
+        Some(value) if value.is_none() => Ok(None),
+        Some(value) => Ok(Some(value.extract::<f64>()?)),
+        None => Ok(None),
+    }
+}
+
+fn option_vec_f64(options: Option<&Bound<'_, PyDict>>, name: &str) -> PyResult<Option<Vec<f64>>> {
+    match option_value(options, name)? {
+        Some(value) if value.is_none() => Ok(None),
+        Some(value) => Ok(Some(value.extract::<Vec<f64>>()?)),
+        None => Ok(None),
+    }
+}
+
+fn option_matrix(
+    options: Option<&Bound<'_, PyDict>>,
+) -> PyResult<Option<BTreeMap<Vec<PreparedSequence>, f64>>> {
+    let Some(value) = option_value(options, "mat")? else {
+        return Ok(None);
+    };
+    if value.is_none() {
+        return Ok(None);
+    }
+
+    let matrix = value.cast::<PyDict>().map_err(|_| {
+        PyTypeError::new_err("mat must be a dictionary keyed by input-sequence tuples")
+    })?;
+    let mut parsed = BTreeMap::new();
+    for (key, score) in matrix.iter() {
+        let key = key.cast::<PyTuple>().map_err(|_| {
+            PyTypeError::new_err("mat keys must be tuples of supported input sequences")
+        })?;
+        let inputs = key
+            .iter()
+            .map(|input| input_from_object(&input))
+            .collect::<PyResult<Vec<_>>>()?;
+        let prepared = prepare_sequences(&inputs, QValue::Elements).map_err(input_error)?;
+        parsed.insert(prepared, score.extract::<f64>()?);
+    }
+    Ok(Some(parsed))
+}
+
+fn option_char(options: Option<&Bound<'_, PyDict>>, name: &str) -> PyResult<Option<char>> {
+    let Some(value) = option_value(options, name)? else {
+        return Ok(None);
+    };
+    if value.is_none() {
+        return Ok(None);
+    }
+    let text = value.extract::<String>()?;
+    let mut chars = text.chars();
+    let Some(character) = chars.next() else {
+        return Err(PyValueError::new_err(format!("{name} must not be empty")));
+    };
+    if chars.next().is_some() {
+        return Err(PyValueError::new_err(format!(
+            "{name} must contain exactly one Unicode character"
+        )));
+    }
+    Ok(Some(character))
+}
+
+fn option_string(
+    options: Option<&Bound<'_, PyDict>>,
+    name: &str,
+    default: String,
+) -> PyResult<String> {
+    match option_value(options, name)? {
+        Some(value) => value.extract::<String>(),
+        None => Ok(default),
+    }
+}
+
+fn option_value<'py>(
+    options: Option<&Bound<'py, PyDict>>,
+    name: &str,
+) -> PyResult<Option<Bound<'py, PyAny>>> {
+    match options {
+        Some(options) => options.get_item(name),
+        None => Ok(None),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AlgorithmKind, RustAlgorithm};
+    use pyo3::prelude::*;
+    use pyo3::types::{PyBytes, PyDict, PyList, PyTuple};
+
+    #[test]
+    fn algorithm_aliases_are_stable() {
+        assert_eq!(
+            AlgorithmKind::parse("Damerau-Levenshtein").unwrap(),
+            AlgorithmKind::DamerauLevenshtein
+        );
+        assert_eq!(
+            AlgorithmKind::parse("dice").unwrap(),
+            AlgorithmKind::Sorensen
+        );
+        assert_eq!(
+            AlgorithmKind::parse("lcs_str").unwrap(),
+            AlgorithmKind::LCSStr
+        );
+    }
+
+    #[test]
+    fn python_adapter_executes_common_contract() -> PyResult<()> {
+        Python::initialize();
+        Python::attach(|py| -> PyResult<()> {
+            let levenshtein = RustAlgorithm::from_options("levenshtein", Some(1), true, None)?;
+            let text_args = PyTuple::new(py, ["test", "text"])?;
+
+            let raw = levenshtein.__call__(py, &text_args)?;
+            assert_eq!(raw.bind(py).extract::<f64>()?, 1.0);
+            assert_eq!(levenshtein.distance(&text_args)?, 1.0);
+            assert_eq!(levenshtein.similarity(&text_args)?, 3.0);
+            assert_eq!(levenshtein.maximum(&text_args)?, 4.0);
+            assert!((levenshtein.normalized_distance(&text_args)? - 0.25).abs() < f64::EPSILON);
+            assert!((levenshtein.normalized_similarity(&text_args)? - 0.75).abs() < f64::EPSILON);
+
+            let prefix = RustAlgorithm::from_options("prefix", Some(1), true, None)?;
+            let prefix_output = prefix.__call__(py, &text_args)?;
+            assert_eq!(prefix_output.bind(py).extract::<String>()?, "te");
+
+            let word_prefix = RustAlgorithm::from_options("prefix", None, true, None)?;
+            let word_args = PyTuple::new(py, ["alpha beta", "alpha gamma"])?;
+            let word_output = word_prefix.__call__(py, &word_args)?;
+            assert_eq!(
+                word_output.bind(py).extract::<Vec<String>>()?,
+                vec!["alpha"]
+            );
+
+            let hamming = RustAlgorithm::from_options("hamming", Some(1), true, None)?;
+            let byte_args = PyTuple::new(
+                py,
+                [
+                    PyBytes::new(py, b"abc").into_any(),
+                    PyBytes::new(py, b"abd").into_any(),
+                ],
+            )?;
+            assert_eq!(hamming.distance(&byte_args)?, 1.0);
+
+            let integer_args = PyTuple::new(
+                py,
+                [
+                    PyList::new(py, [1_i64, 2, 3])?.into_any(),
+                    PyList::new(py, [1_i64, 4, 3])?.into_any(),
+                ],
+            )?;
+            assert_eq!(hamming.distance(&integer_args)?, 1.0);
+
+            let matrix_options = PyDict::new(py);
+            let matrix_values = PyDict::new(py);
+            let ac = PyTuple::new(py, ["A", "C"])?;
+            matrix_values.set_item(&ac, -3)?;
+            matrix_options.set_item("mat", &matrix_values)?;
+            matrix_options.set_item("symmetric", true)?;
+            let matrix =
+                RustAlgorithm::from_options("matrix", Some(1), true, Some(&matrix_options))?;
+            let matrix_args = PyTuple::new(py, ["A", "C"])?;
+            let matrix_value = matrix.__call__(py, &matrix_args)?;
+            assert_eq!(matrix_value.bind(py).extract::<f64>()?, -3.0);
+
+            let callback_options = PyDict::new(py);
+            callback_options.set_item("sim_test", py.None())?;
+            assert!(
+                RustAlgorithm::from_options("prefix", Some(1), true, Some(&callback_options))
+                    .is_err()
+            );
+
+            Ok(())
+        })
+    }
 }

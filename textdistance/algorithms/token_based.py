@@ -212,14 +212,15 @@ class MongeElkan(_BaseSimilarity):
         self.external = external
 
     def _check_supported(self) -> None:
-        default = (
-            type(self.algorithm) is DamerauLevenshtein
-            and self.algorithm.restricted
-            and self.algorithm.test_func is self.algorithm._ident
-        )
+        default = type(self.algorithm).__name__ in {
+            'DamerauLevenshtein',
+            'Jaro',
+            'JaroWinkler',
+        }
         if not default:
             raise NotImplementedError(
-                'MongeElkan with a custom algorithm= is not supported by the Rust-backed port',
+                'MongeElkan supports the built-in Damerau-Levenshtein, Jaro, '
+                'and Jaro-Winkler comparators in the Rust-backed port',
             )
 
     def maximum(self, *sequences: Sequence) -> float:

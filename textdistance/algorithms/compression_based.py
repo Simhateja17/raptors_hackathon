@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import math
+from collections import Counter
+from fractions import Fraction
 
 # app
 from .. import _rust_adapter as _rust
@@ -54,6 +57,56 @@ class ArithNCD(_NCDBase):
         self.terminator = terminator
         self.qval = qval
 
+    # These private helpers remain part of the original compatibility surface.
+    # Public calls still go through the Rust adapter below.
+    def _make_probs(self, *sequences):
+        sequences = self._get_counters(*sequences)
+        counts = self._sum_counters(*sequences)
+        if self.terminator is not None:
+            counts[self.terminator] = 1
+        total_letters = sum(counts.values())
+
+        probabilities = {}
+        cumulative_count = 0
+        for char, current_count in counts.most_common():
+            probabilities[char] = (
+                Fraction(cumulative_count, total_letters),
+                Fraction(current_count, total_letters),
+            )
+            cumulative_count += current_count
+        return probabilities
+
+    def _get_range(self, data, probs):
+        if self.terminator is not None:
+            if self.terminator in data:
+                data = data.replace(self.terminator, '')
+            data += self.terminator
+
+        start = Fraction(0, 1)
+        width = Fraction(1, 1)
+        for char in data:
+            probability_start, probability_width = probs[char]
+            start += probability_start * width
+            width *= probability_width
+        return start, start + width
+
+    def _compress(self, data):
+        probabilities = self._make_probs(data)
+        start, end = self._get_range(data=data, probs=probabilities)
+        output_fraction = Fraction(0, 1)
+        output_denominator = 1
+        while not (start <= output_fraction < end):
+            output_numerator = 1 + ((start.numerator * output_denominator) // start.denominator)
+            output_fraction = Fraction(output_numerator, output_denominator)
+            output_denominator *= 2
+        return output_fraction
+
+    def _get_size(self, data):
+        numerator = self._compress(data).numerator
+        if numerator == 0:
+            return 0
+        return math.ceil(math.log(numerator, self.base))
+
 
 class RLENCD(_NCDBase):
     """Run-length encoding
@@ -88,6 +141,12 @@ class SqrtNCD(_NCDBase):
     def __init__(self, qval: int = 1) -> None:
         self.qval = qval
 
+    def _compress(self, data):
+        return {element: math.sqrt(count) for element, count in Counter(data).items()}
+
+    def _get_size(self, data):
+        return sum(self._compress(data).values())
+
 
 class EntropyNCD(_NCDBase):
     """Entropy based NCD
@@ -103,6 +162,18 @@ class EntropyNCD(_NCDBase):
         self.qval = qval
         self.coef = coef
         self.base = base
+
+    def _compress(self, data):
+        total_count = len(data)
+        entropy = 0.0
+        for element_count in Counter(data).values():
+            probability = element_count / total_count
+            entropy -= probability * math.log(probability, self.base)
+        assert entropy >= 0
+        return entropy
+
+    def _get_size(self, data):
+        return self.coef + self._compress(data)
 
 
 # -- BINARY COMPRESSORS -- #
